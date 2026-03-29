@@ -1,9 +1,0 @@
-[submodule "Frontend_UI"]
-	path = Frontend_UI
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Frontend_UI.git
-[submodule "Service_Account"]
-	path = Service_Account
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Account.git
-[submodule "Service_Config"]
-	path = Service_Config
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Config.git
