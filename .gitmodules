@@ -1,0 +1,6 @@
+[submodule "Service_Login"]
+	path = Service_Login
+	url = ../Service_Login
+[submodule "Service_SSOT"]
+	path = Service_SSOT
+	url = ../Service_SSOT
