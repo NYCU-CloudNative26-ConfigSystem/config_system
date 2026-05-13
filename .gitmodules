@@ -1,3 +1,0 @@
-[submodule "Service_Account"]
-	path = Service_Account
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Account.git
