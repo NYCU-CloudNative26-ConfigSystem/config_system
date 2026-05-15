@@ -4,3 +4,6 @@
 [submodule "Service_SSOT"]
 	path = Service_SSOT
 	url = ../Service_SSOT
+[submodule "Service_IAmATestPage"]
+	path = Service_IAmATestPage
+	url = ../Service_IAmATestPage
