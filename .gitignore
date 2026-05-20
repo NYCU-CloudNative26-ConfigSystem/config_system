@@ -1,0 +1,7 @@
+.env/
+venv/
+ENV/
+.venv
+.DS_Store
+.localized
+__MACOSX/

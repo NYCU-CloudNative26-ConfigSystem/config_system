@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_service
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  service-login:
+    build: ./Service_Login
+    ports: ["18000:8000"]
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres:5432/auth_service
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  service-config-table:
+    build: ./Service_Config_Table
+    ports: ["18001:18001"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/config_table_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      VERSION_CONTROL_SERVICE_URL: http://service-version-control:18004
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      service-version-control: {condition: service_started}
+
+  service-template:
+    build: ./Service_Template
+    ports: ["18003:18003"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+    depends_on:
+      redis: {condition: service_healthy}
+
+  service-version-control:
+    build: ./Service_Version_Control
+    ports: ["18004:18004"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      DATABASE_URL: "sqlite+aiosqlite:////data/version_control.db"
+    volumes:
+      - version_control_data:/data
+    depends_on:
+      redis: {condition: service_healthy}
+
+  service-iamatestpage:
+    build: ./Service_IAmATestPage
+    ports: ["5173:80"]
+    depends_on:
+      - service-login
+      - service-config-table
+      - service-template
+      - service-version-control
+
+volumes:
+  postgres_data:
+  version_control_data:

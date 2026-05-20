@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: version-control-pvc
+  namespace: config-system
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-version-control
+  namespace: config-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: service-version-control}
+  template:
+    metadata:
+      labels: {app: service-version-control}
+    spec:
+      containers:
+        - name: app
+          image: service-version-control:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 18004}]
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef: {name: shared-config, key: REDIS_URL}
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
+            - {name: DATABASE_URL, value: "sqlite+aiosqlite:////data/version_control.db"}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            httpGet: {path: /health, port: 18004}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: version-control-pvc}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-version-control
+  namespace: config-system
+spec:
+  selector: {app: service-version-control}
+  ports: [{port: 18004, targetPort: 18004}]
