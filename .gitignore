@@ -5,3 +5,4 @@ ENV/
 .DS_Store
 .localized
 __MACOSX/
+.env
