@@ -67,8 +67,8 @@ services:
     depends_on:
       redis: {condition: service_healthy}
 
-  service-iamatestpage:
-    build: ./Service_IAmATestPage
+  frontend-ui:
+    build: ./Frontend_UI
     ports: ["5173:80"]
     depends_on:
       - service-login
