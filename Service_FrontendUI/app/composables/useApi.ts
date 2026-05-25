@@ -34,7 +34,7 @@ export interface GroupEntry {
 export interface SsotConfigEntry {
   truth: string | null
   alias: string
-  value: string | number
+  value: string | number | Record<string, unknown> | unknown[]
 }
 
 export interface SsotConfigRequest {
@@ -66,6 +66,27 @@ export interface ConfigWritePayload {
   cmp_id: string
   user_id: string
   entries: ConfigWriteEntry[]
+  template_version_uuid?: string
+}
+
+export interface ConfigHistoryItem {
+  config_relation_uuid: string
+  date_created: string
+  date_deleted: string | null
+  created_by: string | null
+  entry_count: number
+  is_latest: boolean
+  template_version_uuid: string | null
+  template_version_number: number | null
+}
+
+export interface CompanyResponse {
+  uuid: string
+  cmp_id: string
+  display_name: string
+  description: string | null
+  created_by: string
+  date_created: string
 }
 
 export interface ProjectResponse {
@@ -76,6 +97,29 @@ export interface ProjectResponse {
   created_by: string
   date_created: string
   companies: string[]
+}
+
+export interface ProjectTemplateKey {
+  uuid: string
+  proj_id: string
+  alias: string
+  position: number
+  date_created: string
+}
+
+export interface ProjectTemplateVersion {
+  uuid: string
+  proj_id: string
+  version_number: number
+  latest: boolean
+  created_by: string
+  date_created: string
+  keys: string[]
+}
+
+export interface PublishedTemplateKeysResponse {
+  version_uuid: string | null
+  keys: string[]
 }
 
 // ── Base URLs ─────────────────────────────────────────────────────────────────
@@ -173,6 +217,39 @@ export function useApi() {
           `${BASE.config}/api/v1/config/`,
           { method: "POST", body: JSON.stringify(payload), headers: { Authorization: `Bearer ${token}` } },
         ),
+      companiesWithConfig: (projId: string, token: string) =>
+        req<string[]>(
+          `${BASE.config}/api/v1/config/companies?proj_id=${encodeURIComponent(projId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      history: (projId: string, cmpId: string, token: string) =>
+        req<ConfigHistoryItem[]>(
+          `${BASE.config}/api/v1/config/history?proj_id=${encodeURIComponent(projId)}&cmp_id=${encodeURIComponent(cmpId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      getByUuid: (uuid: string, token: string) =>
+        req<ConfigReadResponse>(
+          `${BASE.config}/api/v1/config/${encodeURIComponent(uuid)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+    },
+
+    companies: {
+      list: (token: string) =>
+        req<CompanyResponse[]>(
+          `${BASE.config}/api/v1/companies`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      get: (cmpId: string, token: string) =>
+        req<CompanyResponse>(
+          `${BASE.config}/api/v1/companies/${encodeURIComponent(cmpId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      create: (payload: { cmp_id: string; display_name: string; description?: string }, token: string) =>
+        req<CompanyResponse>(
+          `${BASE.config}/api/v1/companies`,
+          { method: 'POST', body: JSON.stringify(payload), headers: { Authorization: `Bearer ${token}` } },
+        ),
     },
 
     projects: {
@@ -205,6 +282,36 @@ export function useApi() {
         req<void>(
           `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}`,
           { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+        ),
+      getTemplateKeys: (projId: string, token: string) =>
+        req<ProjectTemplateKey[]>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/keys`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      addTemplateKey: (projId: string, payload: { alias: string; position?: number }, token: string) =>
+        req<ProjectTemplateKey>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/keys`,
+          { method: "POST", body: JSON.stringify(payload), headers: { Authorization: `Bearer ${token}` } },
+        ),
+      removeTemplateKey: (projId: string, keyUuid: string, token: string) =>
+        req<void>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/keys/${encodeURIComponent(keyUuid)}`,
+          { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+        ),
+      getTemplateVersions: (projId: string, token: string) =>
+        req<ProjectTemplateVersion[]>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/versions`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      publishTemplate: (projId: string, token: string) =>
+        req<ProjectTemplateVersion>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/publish`,
+          { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+        ),
+      getPublishedTemplateKeys: (projId: string, token: string) =>
+        req<PublishedTemplateKeysResponse>(
+          `${BASE.config}/api/v1/projects/${encodeURIComponent(projId)}/template/published-keys`,
+          { headers: { Authorization: `Bearer ${token}` } },
         ),
     },
   };
