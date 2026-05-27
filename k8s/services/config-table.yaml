@@ -42,3 +42,4 @@ metadata:
 spec:
   selector: {app: service-config-table}
   ports: [{port: 18001, targetPort: 18001}]
+

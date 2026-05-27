@@ -18,3 +18,4 @@ spec:
                 name: service-frontendui
                 port:
                   number: 3000
+

@@ -98,18 +98,31 @@ services:
     depends_on:
       redis: {condition: service_healthy}
 
+  service-config-export:
+    build: ./Service_Config_Export
+    ports: ["18005:18005"]
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      CONFIG_SERVICE_URL: http://service-config-table:18001
+      SSOT_SERVICE_URL: http://service-ssot:3000
+    depends_on:
+      - service-config-table
+      - service-ssot
+
   frontend-ui:
     build: ./Service_FrontendUI
     ports: ["5173:3000"]
     environment:
       LOGIN_URL: http://service-login:8000
       CONFIG_URL: http://service-config-table:18001
+      EXPORT_URL: http://service-config-export:18005
       SSOT_URL: http://service-ssot:3000
       TEMPLATE_URL: http://service-template:18003
       VERSION_URL: http://service-version-control:18004
     depends_on:
       - service-login
       - service-config-table
+      - service-config-export
       - service-ssot
       - service-template
       - service-version-control
