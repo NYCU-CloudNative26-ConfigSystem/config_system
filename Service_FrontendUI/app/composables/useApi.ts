@@ -6,6 +6,7 @@ export interface SearchResult {
   name: string
   latestValue: string | number | null
   score: number
+  is_sensitive: boolean
 }
 
 export interface NodeResolveResponse {
@@ -13,6 +14,7 @@ export interface NodeResolveResponse {
   uuid: string
   name_val?: string
   val?: string | number
+  is_sensitive?: boolean
   isArray?: boolean
   entries?: { key: string; val: string }[]
 }
@@ -35,6 +37,7 @@ export interface SsotConfigEntry {
   truth: string | null
   alias: string
   value: string | number | Record<string, unknown> | unknown[]
+  sensitive?: boolean
 }
 
 export interface SsotConfigRequest {
@@ -52,7 +55,16 @@ export interface CTRow {
 export interface ConfigReadResponse {
   config_relation_uuid: string
   date_created: string
+  environment: string
   rows: CTRow[]
+  // Populated by getByUuid; null when returned by get_config (latest-only endpoint)
+  approval_status?: string | null
+  approved_by?: string | null
+  approved_at?: string | null
+  rejection_reason?: string | null
+  created_by?: string | null
+  is_latest?: boolean | null
+  change_description?: string | null
 }
 
 export interface ConfigWriteEntry {
@@ -64,9 +76,11 @@ export interface ConfigWriteEntry {
 export interface ConfigWritePayload {
   proj_id: string
   cmp_id: string
+  environment: string
   user_id: string
   entries: ConfigWriteEntry[]
   template_version_uuid?: string
+  change_description?: string
 }
 
 export interface ConfigHistoryItem {
@@ -76,8 +90,22 @@ export interface ConfigHistoryItem {
   created_by: string | null
   entry_count: number
   is_latest: boolean
+  environment: string
   template_version_uuid: string | null
   template_version_number: number | null
+  approval_status: string
+  approved_by: string | null
+  approved_at: string | null
+  rejection_reason: string | null
+  change_description: string | null
+}
+
+export interface ConfigApprovalResponse {
+  config_relation_uuid: string
+  approval_status: string
+  approved_by: string | null
+  approved_at: string | null
+  rejection_reason: string | null
 }
 
 export interface CompanyResponse {
@@ -169,10 +197,10 @@ export function useApi() {
     },
 
     auth: {
-      register: (email: string, username: string, password: string, full_name: string, company: string) =>
+      register: (email: string, username: string, password: string, full_name: string, company: string, role: string = 'user') =>
         req<{ id: number; email: string; company: string }>(
           `${BASE.login}/api/v1/auth/register`,
-          { method: "POST", body: JSON.stringify({ email, username, password, full_name, company }) },
+          { method: "POST", body: JSON.stringify({ email, username, password, full_name, company, role }) },
         ),
       login: (email: string, password: string) => {
         console.log("Login URL:", `${BASE.login}/api/v1/auth/login`);
@@ -182,7 +210,7 @@ export function useApi() {
         );
       },
       me: (token: string) =>
-        req<{ email: string; full_name: string; company: string; username: string }>(
+        req<{ email: string; full_name: string; company: string; username: string; role: string }>(
           `${BASE.login}/api/v1/auth/me`,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
@@ -199,6 +227,11 @@ export function useApi() {
           `${BASE.ssot}/api/v1/node/${uuid}`,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
+      setSensitive: (truthId: string, sensitive: boolean, token: string) =>
+        req<{ ok: boolean; sensitive: boolean }>(
+          `${BASE.ssot}/api/v1/truth/${encodeURIComponent(truthId)}/sensitive`,
+          { method: 'PATCH', body: JSON.stringify({ sensitive }), headers: { Authorization: `Bearer ${token}` } },
+        ),
       postConfig: (payload: SsotConfigRequest, token: string) =>
         req<{ entries: ProcessedEntry[] }>(
           `${BASE.ssot}/api/v1/config`,
@@ -207,9 +240,9 @@ export function useApi() {
     },
 
     configTable: {
-      getConfig: (projId: string, cmpId: string, token: string) =>
+      getConfig: (projId: string, cmpId: string, environment: string, token: string) =>
         req<ConfigReadResponse>(
-          `${BASE.config}/api/v1/config?proj_id=${encodeURIComponent(projId)}&cmp_id=${encodeURIComponent(cmpId)}`,
+          `${BASE.config}/api/v1/config?proj_id=${encodeURIComponent(projId)}&cmp_id=${encodeURIComponent(cmpId)}&environment=${encodeURIComponent(environment)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       writeConfig: (payload: ConfigWritePayload, token: string) =>
@@ -222,15 +255,35 @@ export function useApi() {
           `${BASE.config}/api/v1/config/companies?proj_id=${encodeURIComponent(projId)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
-      history: (projId: string, cmpId: string, token: string) =>
+      history: (projId: string, cmpId: string, environment: string, token: string) =>
         req<ConfigHistoryItem[]>(
-          `${BASE.config}/api/v1/config/history?proj_id=${encodeURIComponent(projId)}&cmp_id=${encodeURIComponent(cmpId)}`,
+          `${BASE.config}/api/v1/config/history?proj_id=${encodeURIComponent(projId)}&cmp_id=${encodeURIComponent(cmpId)}&environment=${encodeURIComponent(environment)}`,
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       getByUuid: (uuid: string, token: string) =>
         req<ConfigReadResponse>(
           `${BASE.config}/api/v1/config/${encodeURIComponent(uuid)}`,
           { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      promote: (payload: { proj_id: string; cmp_id: string; from_environment: string; to_environment: string }, token: string) =>
+        req<ConfigReadResponse>(
+          `${BASE.config}/api/v1/config/promote`,
+          { method: 'POST', body: JSON.stringify(payload), headers: { Authorization: `Bearer ${token}` } },
+        ),
+      promoteByUuid: (uuid: string, toEnvironment: string, token: string) =>
+        req<ConfigReadResponse>(
+          `${BASE.config}/api/v1/config/${encodeURIComponent(uuid)}/promote`,
+          { method: 'POST', body: JSON.stringify({ to_environment: toEnvironment }), headers: { Authorization: `Bearer ${token}` } },
+        ),
+      approve: (uuid: string, token: string) =>
+        req<ConfigApprovalResponse>(
+          `${BASE.config}/api/v1/config/${encodeURIComponent(uuid)}/approve`,
+          { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+        ),
+      reject: (uuid: string, reason: string | null, token: string) =>
+        req<ConfigApprovalResponse>(
+          `${BASE.config}/api/v1/config/${encodeURIComponent(uuid)}/reject`,
+          { method: 'POST', body: JSON.stringify({ reason }), headers: { Authorization: `Bearer ${token}` } },
         ),
     },
 

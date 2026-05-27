@@ -6,12 +6,13 @@ const username = ref('')
 const company = ref('')
 const email = ref('')
 const password = ref('')
+const role = ref('user')
 const { error, setError, clear } = useFormError()
 
 async function register() {
   clear()
   try {
-    await api.auth.register(email.value, username.value, password.value, fullName.value, company.value)
+    await api.auth.register(email.value, username.value, password.value, fullName.value, company.value, role.value)
     navigateTo('/login?registered=1')
   } catch (e: unknown) {
     setError(e, 'Registration failed. Please try again.')
@@ -58,6 +59,15 @@ async function register() {
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Password</label>
             <input v-model="password" type="password" placeholder="Minimum 8 characters" minlength="8" required
               class="w-full ring-1 ring-slate-200 rounded-xl px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</label>
+            <select v-model="role"
+              class="w-full ring-1 ring-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+              <option value="user">User — can submit configs</option>
+              <option value="reviewer">Reviewer — can approve / reject configs</option>
+              <option value="admin">Admin — full access</option>
+            </select>
           </div>
           <div v-if="error"
             class="flex items-start gap-2 rounded-xl bg-red-50 ring-1 ring-red-200 px-3 py-2.5 text-sm text-red-700">

@@ -110,6 +110,16 @@ services:
       - service-template
       - service-version-control
 
+  test-config-table:
+    build: ./Service_Config_Table
+    command: python -m pytest tests/ -v --tb=short
+    environment:
+      SECRET_KEY: test-secret-key-for-ci
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis: {condition: service_healthy}
+    profiles: ["test"]
+
 volumes:
   postgres_data:
   neo4j_data:

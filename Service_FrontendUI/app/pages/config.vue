@@ -2,9 +2,7 @@
 import type {
   CompanyResponse,
   ConfigHistoryItem,
-  ConfigReadResponse,
   ConfigWriteEntry,
-  NodeResolveResponse,
   ProjectResponse,
   ProjectTemplateKey,
   ProjectTemplateVersion,
@@ -32,6 +30,15 @@ function resolveCompanyName(id: string): string {
 
 const projId = ref('')
 const cmpId = ref('')
+const envId = ref('')
+
+const ENVIRONMENTS = [
+  { id: 'development', label: 'Development' },
+  { id: 'testing', label: 'Testing' },
+  { id: 'staging', label: 'Staging' },
+  { id: 'production', label: 'Production' },
+] as const
+
 const projectInfo = ref<ProjectResponse | null>(null)
 const companiesWithConfig = ref<string[]>([])
 const level1Loading = ref(false)
@@ -120,6 +127,9 @@ onMounted(async () => {
   }
   if (route.query.cmp) {
     cmpId.value = route.query.cmp as string
+  }
+  if (route.query.env) {
+    envId.value = route.query.env as string
     await loadHistory()
   }
 })
@@ -151,15 +161,28 @@ async function selectCompany(id: string) {
   if (!id) return
   cmpId.value = id
   newConfigCmpId.value = ''
+  envId.value = ''
   router.replace({ query: { proj: projId.value, cmp: id } })
+}
+
+async function selectEnvironment(env: string) {
+  envId.value = env
+  router.replace({ query: { proj: projId.value, cmp: cmpId.value, env } })
   await loadHistory()
+}
+
+function backToEnvList() {
+  envId.value = ''
+  snapshotHistory.value = []
+  showEditor.value = false
+  submitSuccess.value = false
+  router.replace({ query: { proj: projId.value, cmp: cmpId.value } })
 }
 
 function backToCompanyList() {
   cmpId.value = ''
+  envId.value = ''
   snapshotHistory.value = []
-  expandedUuid.value = null
-  expandedConfig.value = null
   showEditor.value = false
   submitSuccess.value = false
   router.replace({ query: { proj: projId.value } })
@@ -172,11 +195,11 @@ const historyLoading = ref(false)
 const historyError = ref('')
 
 async function loadHistory() {
-  if (!projId.value || !cmpId.value) return
+  if (!projId.value || !cmpId.value || !envId.value) return
   historyLoading.value = true
   historyError.value = ''
   try {
-    snapshotHistory.value = await api.configTable.history(projId.value, cmpId.value, auth.token)
+    snapshotHistory.value = await api.configTable.history(projId.value, cmpId.value, envId.value, auth.token)
   } catch (e: unknown) {
     historyError.value = e instanceof Error ? e.message : 'Failed to load history'
   } finally {
@@ -184,112 +207,10 @@ async function loadHistory() {
   }
 }
 
-// ── Snapshot expansion ────────────────────────────────────────────────────────
-
-const expandedUuid = ref<string | null>(null)
-const expandedConfig = ref<ConfigReadResponse | null>(null)
-const expandLoading = ref(false)
-const resolvedNames = ref<Record<string, string>>({})
-const resolvedValues = ref<Record<string, string>>({})
-
-function stripRef(r: string): string {
-  return r.startsWith('VALUE:') || r.startsWith('GROUP:') ? r.slice(6) : r
-}
-
-async function resolveNodeToDisplay(uuid: string, depth = 0): Promise<string> {
-  if (depth > 4) return '…'
-  const node = await api.ssot.resolveNode(uuid, auth.token).catch(() => null)
-  if (!node) return uuid
-  if (node.type === 'value') return String(node.val ?? '')
-  if (node.type === 'name') return node.name_val ?? uuid
-  if (node.type === 'group') {
-    if (!node.entries?.length) return node.isArray ? '[]' : '{}'
-    const parts = await Promise.all(node.entries.map(async e => {
-      const keyNode = await api.ssot.resolveNode(e.key, auth.token).catch(() => null)
-      const keyName = keyNode?.type === 'name' ? (keyNode.name_val ?? e.key) : e.key
-      const valDisplay = await resolveNodeToDisplay(stripRef(e.val), depth + 1)
-      return node.isArray ? valDisplay : `${keyName}: ${valDisplay}`
-    }))
-    return node.isArray ? `[ ${parts.join(', ')} ]` : `{ ${parts.join(', ')} }`
-  }
-  return uuid
-}
-
-async function resolveRows(config: ConfigReadResponse) {
-  resolvedNames.value = {}
-  resolvedValues.value = {}
-  await Promise.all(config.rows.flatMap(row => [
-    api.ssot.resolveNode(row.key, auth.token)
-      .then(n => { if (n?.type === 'name') resolvedNames.value[row.key] = n.name_val ?? row.key })
-      .catch(() => {}),
-    (async () => {
-      const stripped = stripRef(row.val)
-      const n = await api.ssot.resolveNode(stripped, auth.token).catch(() => null)
-      if (n?.type === 'value') resolvedValues.value[row.val] = String(n.val ?? '')
-      else if (n?.type === 'group') resolvedValues.value[row.val] = await resolveNodeToDisplay(stripped, 0)
-    })(),
-  ]))
-}
-
-async function expandSnapshot(uuid: string) {
-  if (expandedUuid.value === uuid) {
-    expandedUuid.value = null
-    return
-  }
-  expandedUuid.value = uuid
-  expandLoading.value = true
-  try {
-    expandedConfig.value = await api.configTable.getByUuid(uuid, auth.token)
-    await resolveRows(expandedConfig.value)
-  } catch {
-    expandedConfig.value = null
-  } finally {
-    expandLoading.value = false
-  }
-}
-
 function formatDate(iso: string | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString()
 }
-
-// ── Node resolve modal ────────────────────────────────────────────────────────
-
-interface ModalResolvedEntry { key: string; val: string; keyName: string; valDisplay: string }
-const modal = ref<{
-  uuid: string
-  data: NodeResolveResponse | null
-  loading: boolean
-  error: string
-  resolvedEntries: ModalResolvedEntry[]
-} | null>(null)
-
-async function openModal(rawUuid: string) {
-  const uuid = stripRef(rawUuid)
-  modal.value = { uuid, data: null, loading: true, error: '', resolvedEntries: [] }
-  try {
-    const result = await api.ssot.resolveNode(uuid, auth.token)
-    if (modal.value) modal.value.data = result
-    if (result?.type === 'group' && result.entries?.length && modal.value) {
-      modal.value.resolvedEntries = await Promise.all(result.entries.map(async e => {
-        const keyNode = await api.ssot.resolveNode(e.key, auth.token).catch(() => null)
-        const keyName = keyNode?.type === 'name' ? (keyNode.name_val ?? e.key) : e.key
-        const valDisplay = await resolveNodeToDisplay(stripRef(e.val), 0)
-        return { key: e.key, val: e.val, keyName, valDisplay }
-      }))
-    }
-  } catch (e: unknown) {
-    if (modal.value) modal.value.error = e instanceof Error ? e.message : 'Failed to resolve node'
-  } finally {
-    if (modal.value) modal.value.loading = false
-  }
-}
-
-function closeModal() { modal.value = null }
-
-onMounted(() => {
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal() })
-})
 
 // ── Editor ────────────────────────────────────────────────────────────────────
 
@@ -307,10 +228,12 @@ interface EditorRow {
   showDropdown: boolean
   searchTimer: ReturnType<typeof setTimeout> | null
   isTemplate: boolean  // locked row from project template — alias/key not editable
+  sensitive: boolean   // mark value as sensitive — masked in snapshot view
 }
 
 const showEditor = ref(false)
 const rows = ref<EditorRow[]>([])
+const changeDescription = ref('')
 const submitError = ref('')
 const submitSuccess = ref(false)
 const submitting = ref(false)
@@ -320,7 +243,7 @@ function makeRow(): EditorRow {
   return {
     id: rowIdCounter++, alias: '', valueType: 'primitive', value: '', children: [],
     isNew: true, truthId: '', searchResults: [], showDropdown: false, searchTimer: null,
-    isTemplate: false,
+    isTemplate: false, sensitive: false,
   }
 }
 
@@ -328,7 +251,7 @@ function makeTemplateRow(key: ProjectTemplateKey): EditorRow {
   return {
     id: rowIdCounter++, alias: key.alias, valueType: 'primitive', value: '', children: [],
     isNew: true, truthId: '', searchResults: [], showDropdown: false, searchTimer: null,
-    isTemplate: true,
+    isTemplate: true, sensitive: false,
   }
 }
 
@@ -364,6 +287,7 @@ function pickSearchResult(row: EditorRow, result: SearchResult) {
   row.value = result.latestValue !== null ? String(result.latestValue) : ''
   row.isNew = false
   row.showDropdown = false
+  row.sensitive = result.is_sensitive ?? false
 }
 
 function toggleNew(row: EditorRow) {
@@ -401,6 +325,7 @@ function openEditor() {
     return
   }
   rows.value = publishedTemplateKeys.value.map(alias => makeTemplateRow({ alias } as ProjectTemplateKey))
+  changeDescription.value = ''
   showEditor.value = true
 }
 
@@ -413,7 +338,7 @@ async function submitConfig() {
     return
   }
   if (rows.value.length === 0) { submitError.value = 'Add at least one row.'; return }
-  if (!projId.value || !cmpId.value) { submitError.value = 'Project and Company are required.'; return }
+  if (!projId.value || !cmpId.value || !envId.value) { submitError.value = 'Project, Company, and Environment are required.'; return }
   submitting.value = true
   try {
     const ssotRes = await api.ssot.postConfig({
@@ -423,17 +348,20 @@ async function submitConfig() {
         truth: r.isNew ? null : r.truthId,
         alias: r.alias,
         value: buildValue(r),
+        sensitive: r.sensitive,
       })),
     }, auth.token)
 
     await api.configTable.writeConfig({
       proj_id: projId.value,
       cmp_id: cmpId.value,
+      environment: envId.value,
       user_id: userName.value || 'unknown',
       entries: ssotRes.entries.map<ConfigWriteEntry>(e => ({
         key: e.nameId, val: e.valRef, group_entries: e.groupEntries,
       })),
       template_version_uuid: publishedTemplateVersionUuid.value ?? undefined,
+      change_description: changeDescription.value.trim() || undefined,
     }, auth.token)
 
     submitSuccess.value = true
@@ -448,9 +376,6 @@ async function submitConfig() {
       api.configTable.companiesWithConfig(projId.value, auth.token)
         .then(c => { companiesWithConfig.value = c }).catch(() => {}),
     ])
-    if (snapshotHistory.value.length > 0) {
-      await expandSnapshot(snapshotHistory.value[0]!.config_relation_uuid)
-    }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     submitError.value = msg.includes('409') || msg.toLowerCase().includes('conflict')
@@ -481,7 +406,14 @@ async function submitConfig() {
           <template v-else>
             <button @click="backToCompanyList" class="text-slate-400 hover:text-slate-700 transition shrink-0 hidden sm:inline">{{ projectInfo?.display_name ?? projId }}</button>
             <span class="text-slate-200 shrink-0 hidden sm:inline select-none">›</span>
-            <span class="font-semibold text-slate-900 truncate">{{ resolveCompanyName(cmpId) }}</span>
+            <template v-if="!envId">
+              <span class="font-semibold text-slate-900 truncate">{{ resolveCompanyName(cmpId) }}</span>
+            </template>
+            <template v-else>
+              <button @click="backToEnvList" class="text-slate-400 hover:text-slate-700 transition shrink-0 hidden sm:inline">{{ resolveCompanyName(cmpId) }}</button>
+              <span class="text-slate-200 shrink-0 hidden sm:inline select-none">›</span>
+              <span class="font-semibold text-slate-900 truncate capitalize">{{ envId }}</span>
+            </template>
           </template>
         </div>
         <button @click="auth.logout()" class="text-sm text-slate-400 hover:text-red-500 transition shrink-0">Logout</button>
@@ -728,23 +660,75 @@ async function submitConfig() {
         </template><!-- end loading check -->
       </template><!-- end Level 1 -->
 
+      <!-- ── Level 1.5: Environment selector ── -->
+      <template v-else-if="!envId">
+        <div class="flex items-center justify-between">
+          <button @click="backToCompanyList" class="text-sm text-slate-400 hover:text-slate-700 transition">
+            ← Companies
+          </button>
+        </div>
+        <div class="bg-white rounded-2xl ring-1 ring-slate-900/5 overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-50">
+            <h2 class="font-semibold text-slate-900 text-sm">Select Environment</h2>
+            <p class="text-xs text-slate-400 mt-0.5">{{ resolveCompanyName(cmpId) }} · Each environment has its own independent config history.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-3 p-5">
+            <button
+              v-for="env in ENVIRONMENTS" :key="env.id"
+              @click="selectEnvironment(env.id)"
+              class="rounded-2xl ring-1 ring-slate-200 p-5 text-left transition-all hover:shadow-md group"
+              :class="{
+                'hover:ring-green-400 hover:bg-green-50/30': env.id === 'development',
+                'hover:ring-yellow-400 hover:bg-yellow-50/30': env.id === 'testing',
+                'hover:ring-orange-400 hover:bg-orange-50/30': env.id === 'staging',
+                'hover:ring-blue-400 hover:bg-blue-50/30': env.id === 'production',
+              }">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+                  :class="{
+                    'bg-green-100 text-green-600': env.id === 'development',
+                    'bg-yellow-100 text-yellow-600': env.id === 'testing',
+                    'bg-orange-100 text-orange-600': env.id === 'staging',
+                    'bg-blue-100 text-blue-600': env.id === 'production',
+                  }">{{ env.label[0] }}</span>
+                <span class="font-semibold text-slate-800 text-sm">{{ env.label }}</span>
+              </div>
+              <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition"
+                :class="{
+                  'text-green-500': env.id === 'development',
+                  'text-yellow-500': env.id === 'testing',
+                  'text-orange-500': env.id === 'staging',
+                  'text-blue-500': env.id === 'production',
+                }">Open →</span>
+            </button>
+          </div>
+        </div>
+      </template><!-- end Level 1.5 -->
+
       <!-- ── Level 2: Snapshot history ── -->
       <template v-else>
 
         <!-- Toolbar -->
-        <div class="flex items-center justify-between">
-          <button @click="backToCompanyList"
-            class="text-sm text-slate-400 hover:text-slate-700 transition">
-            ← Companies
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <button @click="backToEnvList"
+            class="text-sm text-slate-400 hover:text-slate-700 transition shrink-0">
+            ← Environments
           </button>
-          <button
-            @click="openEditor()"
-            :class="showEditor
-              ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              : 'bg-blue-600 text-white hover:bg-blue-700'"
-            class="rounded-xl px-4 py-2 text-sm font-semibold transition">
-            {{ showEditor ? 'Cancel' : '+ New Snapshot' }}
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="router.push({ path: '/config-diff', query: { proj: projId, cmp: cmpId, env1: envId } })"
+              class="rounded-xl px-4 py-2 text-sm font-semibold transition shrink-0 bg-slate-100 text-slate-700 hover:bg-slate-200">
+              ↔ Compare
+            </button>
+            <button
+              @click="openEditor()"
+              :class="showEditor
+                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'"
+              class="rounded-xl px-4 py-2 text-sm font-semibold transition shrink-0">
+              {{ showEditor ? 'Cancel' : '+ New Snapshot' }}
+            </button>
+          </div>
         </div>
 
         <!-- Editor panel -->
@@ -752,6 +736,7 @@ async function submitConfig() {
           <div class="px-5 py-4 border-b border-slate-50">
             <h2 class="font-semibold text-slate-900 text-sm">
               New Snapshot · <span class="text-blue-600">{{ resolveCompanyName(cmpId) }}</span>
+              <span class="text-slate-400 font-normal ml-1 capitalize">· {{ envId }}</span>
             </h2>
           </div>
           <div class="px-5 py-4 space-y-3">
@@ -779,15 +764,25 @@ async function submitConfig() {
                         @mousedown.prevent="pickSearchResult(row, r)"
                         class="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 flex justify-between gap-2">
                         <span class="font-semibold text-slate-800">{{ r.name }}</span>
-                        <span class="text-slate-400 text-xs truncate">{{ r.projectID }} · {{ r.latestValue }}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <span v-if="r.is_sensitive"
+                            class="text-[10px] font-bold text-amber-600 bg-amber-50 ring-1 ring-amber-200 px-1.5 py-0.5 rounded-full uppercase">Sensitive</span>
+                          <span class="text-slate-400 text-xs truncate max-w-[120px]">
+                            {{ r.projectID }} · {{ r.is_sensitive ? '[sensitive]' : r.latestValue }}
+                          </span>
+                        </div>
                       </li>
                     </ul>
                   </template>
                 </div>
-                <input v-if="row.valueType === 'primitive'" v-model="row.value" type="text"
+                <input v-if="row.valueType === 'primitive'" v-model="row.value"
+                  :type="row.sensitive ? 'password' : 'text'"
                   :placeholder="row.isTemplate ? `Enter value for ${row.alias}` : 'Value'"
-                  :class="row.isTemplate ? 'ring-blue-300 focus:ring-blue-500' : 'ring-slate-200 focus:ring-blue-500'"
-                  class="flex-1 min-w-0 ring-1 rounded-xl px-3 py-2 text-sm bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition" />
+                  :class="[
+                    row.isTemplate ? 'ring-blue-300 focus:ring-blue-500' : 'ring-slate-200 focus:ring-blue-500',
+                    row.sensitive ? 'bg-amber-50/40' : 'bg-white',
+                  ]"
+                  class="flex-1 min-w-0 ring-1 rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition" />
                 <span v-else
                   class="flex items-center px-3 py-2 text-sm text-slate-400 ring-1 ring-slate-200 rounded-xl bg-white shrink-0 font-mono">
                   {{ row.valueType === 'object' ? '{ }' : '[ ]' }}
@@ -808,6 +803,11 @@ async function submitConfig() {
                     class="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap cursor-pointer">
                     <input type="checkbox" :checked="row.isNew" @change="toggleNew(row)" class="accent-blue-600" />
                     New
+                  </label>
+                  <label class="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer"
+                    :class="row.sensitive ? 'text-amber-600 font-semibold' : 'text-slate-400'">
+                    <input type="checkbox" v-model="row.sensitive" class="accent-amber-500" />
+                    Sensitive
                   </label>
                   <button v-if="!row.isTemplate" @click="removeRow(row.id)"
                     class="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">×</button>
@@ -834,13 +834,23 @@ async function submitConfig() {
             <button @click="addRow"
               class="text-sm text-blue-600 hover:text-blue-700 font-semibold transition">+ Add row</button>
 
+            <!-- Change description -->
+            <div class="space-y-1.5 pt-1">
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Reason for change</label>
+              <textarea
+                v-model="changeDescription"
+                placeholder="Describe what changed and why (optional but recommended)"
+                rows="2"
+                class="w-full ring-1 ring-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
+            </div>
+
             <div v-if="submitError"
               class="flex items-start gap-2 rounded-xl bg-red-50 ring-1 ring-red-200 px-3 py-2.5 text-sm text-red-700">
               <span class="mt-0.5 shrink-0">⚠</span><span>{{ submitError }}</span>
             </div>
             <div v-if="submitSuccess"
               class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2.5 text-sm text-emerald-700">
-              Snapshot saved successfully.
+              Snapshot saved — awaiting approval from a reviewer before it becomes active.
             </div>
 
             <button @click="submitConfig" :disabled="submitting || rows.length === 0"
@@ -860,13 +870,21 @@ async function submitConfig() {
         </div>
 
         <div class="space-y-2">
-          <div v-for="snap in snapshotHistory" :key="snap.config_relation_uuid"
-            class="bg-white rounded-2xl ring-1 ring-slate-900/5 overflow-hidden">
-            <button @click="expandSnapshot(snap.config_relation_uuid)"
-              class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/50 transition">
-              <div class="flex flex-wrap items-center gap-2 min-w-0">
-                <span v-if="snap.is_latest"
+          <button
+            v-for="snap in snapshotHistory" :key="snap.config_relation_uuid"
+            @click="router.push({ path: `/config-snapshot/${snap.config_relation_uuid}`, query: { proj: projId, cmp: cmpId, env: envId, created_by: snap.created_by ?? '', tmpl_v: snap.template_version_number != null ? String(snap.template_version_number) : '', is_latest: snap.is_latest ? '1' : '0', status: snap.approval_status, rejection_reason: snap.rejection_reason ?? '', change_description: snap.change_description ?? '' } })"
+            class="w-full bg-white rounded-2xl ring-1 ring-slate-900/5 px-5 py-4 flex items-center justify-between text-left hover:ring-blue-400/40 hover:shadow-sm transition-all group">
+            <div class="flex flex-col min-w-0 gap-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Approval status badge -->
+                <span v-if="snap.is_latest && snap.approval_status === 'approved'"
                   class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">Latest</span>
+                <span v-else-if="snap.approval_status === 'pending'"
+                  class="bg-yellow-50 text-yellow-700 text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">Pending review</span>
+                <span v-else-if="snap.approval_status === 'rejected'"
+                  class="bg-red-50 text-red-700 text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">Rejected</span>
+                <span v-else-if="snap.approval_status === 'approved'"
+                  class="bg-slate-100 text-slate-500 text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0">Approved</span>
                 <span class="text-sm font-medium text-slate-700">{{ formatDate(snap.date_created) }}</span>
                 <span class="text-xs text-slate-400">· {{ snap.created_by ?? 'unknown' }}</span>
                 <span class="text-xs text-slate-400">· {{ snap.entry_count }} {{ snap.entry_count === 1 ? 'entry' : 'entries' }}</span>
@@ -875,93 +893,17 @@ async function submitConfig() {
                   Template v{{ snap.template_version_number }}
                 </span>
               </div>
-              <span class="text-slate-300 shrink-0 ml-2 text-xs transition-transform duration-200 inline-block"
-                :class="{ 'rotate-180': expandedUuid === snap.config_relation_uuid }">▼</span>
-            </button>
-            <div v-if="expandedUuid === snap.config_relation_uuid"
-              class="border-t border-slate-50 bg-slate-50/40 px-5 py-4">
-              <div v-if="expandLoading" class="text-sm text-slate-400 py-2">Loading…</div>
-              <div v-else-if="expandedConfig">
-                <p v-if="expandedConfig.rows.length === 0" class="text-sm text-slate-400">No rows in this snapshot.</p>
-                <div v-else class="overflow-x-auto">
-                  <table class="w-full text-sm min-w-[320px]">
-                    <thead>
-                      <tr class="text-left">
-                        <th class="pb-2 pr-4 text-xs font-semibold text-slate-400 uppercase tracking-wide w-1/2">Key</th>
-                        <th class="pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide w-1/2">Value</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                      <tr v-for="row in expandedConfig.rows" :key="row.uuid">
-                        <td class="py-2 pr-4">
-                          <button @click="openModal(row.key)"
-                            class="font-semibold text-slate-800 hover:text-blue-600 transition text-left text-sm">
-                            {{ resolvedNames[row.key] ?? '…' }}
-                          </button>
-                        </td>
-                        <td class="py-2">
-                          <button @click="openModal(row.val)"
-                            class="text-slate-600 hover:text-blue-600 transition text-left font-mono text-xs">
-                            {{ resolvedValues[row.val] ?? '…' }}
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <p v-if="snap.change_description"
+                class="text-xs text-slate-500 truncate max-w-xs">
+                {{ snap.change_description }}
+              </p>
             </div>
-          </div>
+            <span class="text-slate-300 group-hover:text-blue-500 shrink-0 ml-2 transition">›</span>
+          </button>
         </div>
 
       </template>
     </div>
-
-    <!-- Node resolve modal -->
-    <Teleport to="body">
-      <div v-if="modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeModal" />
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h3 v-if="modal.data?.type === 'name'" class="font-semibold text-slate-900 text-lg">{{ modal.data.name_val }}</h3>
-              <h3 v-else-if="modal.data?.type === 'value'" class="font-semibold text-slate-900 text-lg font-mono">{{ modal.data.val }}</h3>
-              <h3 v-else-if="modal.data?.type === 'group'" class="font-semibold text-slate-900 text-lg font-mono">{{ modal.data.isArray ? '[ ]' : '{ }' }}</h3>
-              <h3 v-else class="font-semibold text-slate-900">Node Detail</h3>
-              <p class="font-mono text-xs text-slate-400 break-all mt-1">{{ modal.uuid }}</p>
-            </div>
-            <button @click="closeModal"
-              class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition shrink-0 text-lg leading-none">×</button>
-          </div>
-          <div v-if="modal.loading" class="text-sm text-slate-400">Resolving…</div>
-          <div v-else-if="modal.error" class="text-sm text-red-600">{{ modal.error }}</div>
-          <div v-else-if="modal.data" class="space-y-3 text-sm">
-            <div class="flex items-center gap-2">
-              <span class="text-slate-400 text-xs font-semibold uppercase tracking-wide w-14 shrink-0">Type</span>
-              <span class="font-semibold capitalize text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md text-xs">{{ modal.data.type }}</span>
-            </div>
-            <template v-if="modal.data.type === 'group'">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-400 text-xs font-semibold uppercase tracking-wide w-14 shrink-0">Kind</span>
-                <span class="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md text-xs">{{ modal.data.isArray ? 'Array' : 'Object' }}</span>
-              </div>
-              <div v-if="modal.resolvedEntries.length > 0" class="space-y-1.5">
-                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Entries</p>
-                <div v-for="entry in modal.resolvedEntries" :key="entry.key"
-                  class="flex items-center gap-2 bg-slate-50 ring-1 ring-slate-100 rounded-xl px-3 py-2">
-                  <span class="font-semibold text-slate-700 shrink-0 text-sm">{{ entry.keyName }}</span>
-                  <span class="text-slate-300">→</span>
-                  <button @click="openModal(entry.val)"
-                    class="text-slate-600 hover:text-blue-600 transition text-left break-all font-mono text-xs flex-1 min-w-0">
-                    {{ entry.valDisplay }}
-                  </button>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </Teleport>
 
   </div>
 </template>
