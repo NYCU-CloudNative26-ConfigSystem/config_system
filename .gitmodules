@@ -19,3 +19,6 @@
 [submodule "Service_Version_Control"]
 	path = Service_Version_Control
 	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Version_Control.git
+[submodule "Service_FrontendUI"]
+	path = Service_FrontendUI
+	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Frontend_UI.git
