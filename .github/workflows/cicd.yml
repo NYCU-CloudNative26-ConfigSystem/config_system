@@ -96,50 +96,6 @@ jobs:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           REDIS_URL: redis://localhost:6379/0
 
-  test-template:
-    name: Test · Template (Python)
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 3s --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          token: ${{ secrets.GH_PAT }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Run tests
-        working-directory: Service_Template
-        run: pip install -r requirements.txt && pytest tests/ -v
-        env:
-          SECRET_KEY: ${{ env.CI_SECRET_KEY }}
-          REDIS_URL: redis://localhost:6379/0
-
-  test-version-control:
-    name: Test · Version Control (Python)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          token: ${{ secrets.GH_PAT }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Run tests
-        working-directory: Service_Version_Control
-        run: pip install -r requirements.txt && pytest tests/ -v
-        env:
-          SECRET_KEY: ${{ env.CI_SECRET_KEY }}
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          REDIS_URL: redis://localhost:6379/0
-
   test-frontend:
     name: Test · Frontend (Docker build)
     runs-on: ubuntu-latest
@@ -160,8 +116,6 @@ jobs:
       - test-ssot
       - test-login
       - test-config-table
-      - test-template
-      - test-version-control
       - test-frontend
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -198,8 +152,6 @@ jobs:
           build_push Service_Login           login
           build_push Service_SSOT            ssot
           build_push Service_Config_Table    config-table
-          build_push Service_Template        template
-          build_push Service_Version_Control version-control
           build_push Service_FrontendUI      frontend
 
 # ── 3. Deploy to GKE ──────────────────────────────────────────────────────────
@@ -273,8 +225,7 @@ jobs:
 
       - name: Wait for all service rollouts
         run: |
-          for deploy in service-login service-ssot service-config-table \
-                        service-template service-version-control service-frontendui; do
+          for deploy in service-login service-ssot service-config-table service-frontendui; do
             echo "⏳ Waiting for $deploy…"
             kubectl rollout status deployment/$deploy -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           done
