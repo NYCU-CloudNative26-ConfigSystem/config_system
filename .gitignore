@@ -6,3 +6,4 @@ ENV/
 .localized
 __MACOSX/
 .env
+.claude/
