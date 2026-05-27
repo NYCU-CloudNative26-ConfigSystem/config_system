@@ -57,6 +57,7 @@ services:
       NEO4J_PASSWORD: password
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       HOST: 0.0.0.0
       PORT: "3000"
     depends_on:
