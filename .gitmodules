@@ -4,18 +4,9 @@
 [submodule "Service_SSOT"]
 	path = Service_SSOT
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_SSOT.git
-[submodule "Service_IAmATestPage"]
-	path = Service_IAmATestPage
-	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_IAmATestPage.git
 [submodule "Service_Config_Table"]
 	path = Service_Config_Table
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Table.git
-[submodule "Service_Template"]
-	path = Service_Template
-	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Template.git
-[submodule "Service_Version_Control"]
-	path = Service_Version_Control
-	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Version_Control.git
 [submodule "Service_FrontendUI"]
 	path = Service_FrontendUI
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Frontend_UI.git

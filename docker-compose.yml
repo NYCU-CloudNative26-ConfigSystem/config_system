@@ -6,51 +6,58 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: auth_service
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    - postgres_data:/var/lib/postgresql/data
+    - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d auth_service"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U user -d auth_service
       interval: 5s
       timeout: 5s
       retries: 5
-
   redis:
     image: redis:7-alpine
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 5s
       timeout: 3s
       retries: 5
-
   neo4j:
     image: neo4j:5-community
     environment:
       NEO4J_AUTH: neo4j/password
     ports:
-      - "7474:7474"   # Neo4j Browser (HTTP)
-      - "7687:7687"   # Bolt
+    - 7474:7474
+    - 7687:7687
     volumes:
-      - neo4j_data:/data
+    - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:7474 || exit 1
       interval: 10s
       timeout: 5s
       retries: 10
-
   service-login:
     build: ./Service_Login
-    ports: ["18000:8000"]
+    ports:
+    - 18000:8000
     environment:
       DATABASE_URL: postgresql://user:password@postgres:5432/auth_service
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
     depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   service-ssot:
     build: ./Service_SSOT
-    ports: ["18002:3000"]
+    ports:
+    - 18002:3000
     environment:
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
@@ -59,85 +66,50 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       HOST: 0.0.0.0
-      PORT: "3000"
+      PORT: '3000'
     depends_on:
-      neo4j: {condition: service_healthy}
-      redis: {condition: service_healthy}
-
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   service-config-table:
     build: ./Service_Config_Table
-    ports: ["18001:18001"]
+    ports:
+    - 18001:18001
     environment:
       DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/config_table_db
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      VERSION_CONTROL_SERVICE_URL: http://service-version-control:18004
     depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      service-version-control: {condition: service_started}
-
-  service-template:
-    build: ./Service_Template
-    ports: ["18003:18003"]
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-    depends_on:
-      redis: {condition: service_healthy}
-
-  service-version-control:
-    build: ./Service_Version_Control
-    ports: ["18004:18004"]
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      DATABASE_URL: "sqlite+aiosqlite:////data/version_control.db"
-    volumes:
-      - version_control_data:/data
-    depends_on:
-      redis: {condition: service_healthy}
-
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
   service-config-export:
     build: ./Service_Config_Export
-    ports: ["18005:18005"]
+    ports:
+    - 18005:18005
     environment:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CONFIG_SERVICE_URL: http://service-config-table:18001
       SSOT_SERVICE_URL: http://service-ssot:3000
     depends_on:
-      - service-config-table
-      - service-ssot
-
+    - service-config-table
+    - service-ssot
   frontend-ui:
     build: ./Service_FrontendUI
-    ports: ["5173:3000"]
+    ports:
+    - 5173:3000
     environment:
       LOGIN_URL: http://service-login:8000
       CONFIG_URL: http://service-config-table:18001
       EXPORT_URL: http://service-config-export:18005
       SSOT_URL: http://service-ssot:3000
-      TEMPLATE_URL: http://service-template:18003
-      VERSION_URL: http://service-version-control:18004
     depends_on:
-      - service-login
-      - service-config-table
-      - service-config-export
-      - service-ssot
-      - service-template
-      - service-version-control
-
-  test-config-table:
-    build: ./Service_Config_Table
-    command: python -m pytest tests/ -v --tb=short
-    environment:
-      SECRET_KEY: test-secret-key-for-ci
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      redis: {condition: service_healthy}
-    profiles: ["test"]
-
+    - service-login
+    - service-config-table
+    - service-config-export
+    - service-ssot
 volumes:
-  postgres_data:
-  neo4j_data:
-  version_control_data:
+  postgres_data: null
+  neo4j_data: null

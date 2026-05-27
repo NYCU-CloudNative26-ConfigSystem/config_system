@@ -26,9 +26,6 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
-            - name: VERSION_CONTROL_SERVICE_URL
-              valueFrom:
-                configMapKeyRef: {name: shared-config, key: VERSION_CONTROL_SERVICE_URL}
           readinessProbe:
             httpGet: {path: /health, port: 18001}
             initialDelaySeconds: 10
@@ -42,4 +39,3 @@ metadata:
 spec:
   selector: {app: service-config-table}
   ports: [{port: 18001, targetPort: 18001}]
-

@@ -6,6 +6,5 @@ metadata:
 data:
   # Internal service URLs (Kubernetes DNS)
   REDIS_URL: "redis://redis:6379/0"
-  VERSION_CONTROL_SERVICE_URL: "http://service-version-control:18004"
   # DATABASE_URL_LOGIN and DATABASE_URL_CONFIG are in shared-secrets
   # (they embed the Postgres password, so they belong in a Secret not a ConfigMap)
