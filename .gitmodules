@@ -1,24 +1,21 @@
 [submodule "Service_Login"]
 	path = Service_Login
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Login.git
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Login.git
 [submodule "Service_SSOT"]
 	path = Service_SSOT
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_SSOT.git
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_SSOT.git
 [submodule "Service_IAmATestPage"]
 	path = Service_IAmATestPage
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_IAmATestPage.git
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_IAmATestPage.git
 [submodule "Service_Config_Table"]
 	path = Service_Config_Table
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Config_Table.git
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Table.git
 [submodule "Service_Template"]
 	path = Service_Template
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Template.git
-
-
-
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Template.git
 [submodule "Service_Version_Control"]
 	path = Service_Version_Control
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Service_Version_Control.git
-[submodule "Frontend_UI"]
-	path = Frontend_UI
-	url = git@github.com:NYCU-CloudNative26-ConfigSystem/Frontend_UI.git
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Version_Control.git
+[submodule "Service_FrontendUI"]
+	path = Service_FrontendUI
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Frontend_UI.git

@@ -37,5 +37,5 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: service-iamatestpage
-                port: {number: 80}
+                name: service-frontendui
+                port: {number: 3000}
