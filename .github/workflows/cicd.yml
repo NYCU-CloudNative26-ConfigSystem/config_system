@@ -176,7 +176,9 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # No service_account → plain external_account ADC; no generateAccessToken call.
+          # Requires roles/container.admin on the WIF pool principal (grants GKE API
+          # access + k8s system:masters via GKE's IAM→RBAC mapping).
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
