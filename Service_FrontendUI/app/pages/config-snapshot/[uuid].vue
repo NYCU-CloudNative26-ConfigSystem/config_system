@@ -233,9 +233,9 @@ async function openModal(rawUuid: string) {
 
 function closeModal() { modal.value = null }
 
-onMounted(() => {
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal() })
-})
+const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal() }
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

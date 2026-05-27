@@ -666,6 +666,11 @@ async function submitConfig() {
           <button @click="backToCompanyList" class="text-sm text-slate-400 hover:text-slate-700 transition">
             ← Companies
           </button>
+          <NuxtLink
+            :to="`/config-diff?proj=${encodeURIComponent(projId)}&cmp=${encodeURIComponent(cmpId)}`"
+            class="text-xs font-semibold text-slate-500 hover:text-blue-600 bg-white ring-1 ring-slate-200 hover:ring-blue-400 rounded-xl px-3 py-1.5 transition">
+            ↔ Compare Envs
+          </NuxtLink>
         </div>
         <div class="bg-white rounded-2xl ring-1 ring-slate-900/5 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-50">

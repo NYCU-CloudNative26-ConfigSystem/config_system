@@ -192,6 +192,7 @@ export function useApi() {
     health: {
       login: () => req<{ status: string }>(`${BASE.login}/health`),
       config: () => req<{ status: string }>(`${BASE.config}/health`),
+      ssot: () => req<{ status: string }>(`${BASE.ssot}/health`),
       template: () => req<{ status: string }>(`${BASE.template}/health`),
       version: () => req<{ status: string }>(`${BASE.version}/health`),
     },
