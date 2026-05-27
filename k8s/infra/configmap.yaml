@@ -4,7 +4,8 @@ metadata:
   name: shared-config
   namespace: config-system
 data:
-  REDIS_URL: redis://redis:6379/0
-  VERSION_CONTROL_SERVICE_URL: http://service-version-control:18004
-  DATABASE_URL_LOGIN: postgresql://user:password@postgres:5432/auth_service
-  DATABASE_URL_CONFIG: postgresql+asyncpg://user:password@postgres:5432/config_table_db
+  # Internal service URLs (Kubernetes DNS)
+  REDIS_URL: "redis://redis:6379/0"
+  VERSION_CONTROL_SERVICE_URL: "http://service-version-control:18004"
+  # DATABASE_URL_LOGIN and DATABASE_URL_CONFIG are in shared-secrets
+  # (they embed the Postgres password, so they belong in a Secret not a ConfigMap)

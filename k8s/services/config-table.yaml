@@ -13,13 +13,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: service-config-table:latest
-          imagePullPolicy: IfNotPresent
+          image: ${IMAGE_CONFIG_TABLE}
+          imagePullPolicy: Always
           ports: [{containerPort: 18001}]
           env:
             - name: DATABASE_URL
               valueFrom:
-                configMapKeyRef: {name: shared-config, key: DATABASE_URL_CONFIG}
+                secretKeyRef: {name: shared-secrets, key: DATABASE_URL_CONFIG}
             - name: REDIS_URL
               valueFrom:
                 configMapKeyRef: {name: shared-config, key: REDIS_URL}
@@ -42,3 +42,4 @@ metadata:
 spec:
   selector: {app: service-config-table}
   ports: [{port: 18001, targetPort: 18001}]
+

@@ -13,13 +13,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: service-login:latest
-          imagePullPolicy: IfNotPresent
+          image: ${IMAGE_LOGIN}
+          imagePullPolicy: Always
           ports: [{containerPort: 8000}]
           env:
             - name: DATABASE_URL
               valueFrom:
-                configMapKeyRef: {name: shared-config, key: DATABASE_URL_LOGIN}
+                secretKeyRef: {name: shared-secrets, key: DATABASE_URL_LOGIN}
             - name: REDIS_URL
               valueFrom:
                 configMapKeyRef: {name: shared-config, key: REDIS_URL}
@@ -39,3 +39,4 @@ metadata:
 spec:
   selector: {app: service-login}
   ports: [{port: 8000, targetPort: 8000}]
+

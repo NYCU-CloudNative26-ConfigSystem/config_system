@@ -4,38 +4,18 @@ metadata:
   name: config-system-ingress
   namespace: config-system
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # Use GKE's native HTTP(S) Load Balancer (no extra controller needed)
+    kubernetes.io/ingress.class: "gce"
 spec:
   rules:
     - http:
         paths:
-          - path: /api/login(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: service-login
-                port: {number: 8000}
-          - path: /api/config(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: service-config-table
-                port: {number: 18001}
-          - path: /api/template(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: service-template
-                port: {number: 18003}
-          - path: /api/version(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: service-version-control
-                port: {number: 18004}
+          # All traffic goes to the Nuxt frontend, which proxies /api/* internally
           - path: /
             pathType: Prefix
             backend:
               service:
                 name: service-frontendui
-                port: {number: 3000}
+                port:
+                  number: 3000
+
