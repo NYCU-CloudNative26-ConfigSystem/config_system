@@ -23,8 +23,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: service-version-control:latest
-          imagePullPolicy: IfNotPresent
+          image: ${IMAGE_VERSION_CONTROL}
+          imagePullPolicy: Always
           ports: [{containerPort: 18004}]
           env:
             - name: REDIS_URL

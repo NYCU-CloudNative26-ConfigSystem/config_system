@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-ssot
+  namespace: config-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: service-ssot}
+  template:
+    metadata:
+      labels: {app: service-ssot}
+    spec:
+      containers:
+        - name: app
+          image: ${IMAGE_SSOT}
+          imagePullPolicy: Always
+          ports: [{containerPort: 3000}]
+          env:
+            - {name: HOST, value: "0.0.0.0"}
+            - {name: PORT, value: "3000"}
+            - {name: NEO4J_URI,  value: "bolt://neo4j:7687"}
+            - {name: NEO4J_USER, value: neo4j}
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: NEO4J_PASSWORD}
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef: {name: shared-config, key: REDIS_URL}
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: ENCRYPTION_KEY}
+          readinessProbe:
+            httpGet: {path: /health, port: 3000}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-ssot
+  namespace: config-system
+spec:
+  selector: {app: service-ssot}
+  ports: [{port: 3000, targetPort: 3000}]
