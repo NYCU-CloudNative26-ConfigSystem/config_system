@@ -185,6 +185,7 @@ jobs:
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Apply namespace
         run: kubectl apply -f k8s/namespace.yaml
@@ -216,12 +217,10 @@ jobs:
       # envsubst replaces IMAGE_* placeholders in k8s/services/*.yaml with real registry paths
       - name: Deploy application services
         env:
-          IMAGE_LOGIN:           ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/login:${{ github.sha }}
-          IMAGE_SSOT:            ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/ssot:${{ github.sha }}
-          IMAGE_CONFIG_TABLE:    ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
-          IMAGE_TEMPLATE:        ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/template:${{ github.sha }}
-          IMAGE_VERSION_CONTROL: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/version-control:${{ github.sha }}
-          IMAGE_FRONTEND:        ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/frontend:${{ github.sha }}
+          IMAGE_LOGIN:        ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/login:${{ github.sha }}
+          IMAGE_SSOT:         ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/ssot:${{ github.sha }}
+          IMAGE_CONFIG_TABLE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
+          IMAGE_FRONTEND:     ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/frontend:${{ github.sha }}
         run: |
           for f in k8s/services/*.yaml; do
             envsubst < "$f" | kubectl apply -f -
