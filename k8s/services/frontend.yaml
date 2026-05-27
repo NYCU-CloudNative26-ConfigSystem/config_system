@@ -18,11 +18,9 @@ spec:
           ports: [{containerPort: 3000}]
           env:
             # Nuxt server-side proxy routes — points to internal Kubernetes services
-            - {name: LOGIN_URL,    value: "http://service-login:8000"}
-            - {name: CONFIG_URL,   value: "http://service-config-table:18001"}
-            - {name: SSOT_URL,     value: "http://service-ssot:3000"}
-            - {name: TEMPLATE_URL, value: "http://service-template:18003"}
-            - {name: VERSION_URL,  value: "http://service-version-control:18004"}
+            - {name: LOGIN_URL,  value: "http://service-login:8000"}
+            - {name: CONFIG_URL, value: "http://service-config-table:18001"}
+            - {name: SSOT_URL,   value: "http://service-ssot:3000"}
           readinessProbe:
             httpGet: {path: /, port: 3000}
             initialDelaySeconds: 10
