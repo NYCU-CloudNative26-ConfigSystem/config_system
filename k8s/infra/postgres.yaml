@@ -45,7 +45,7 @@ spec:
               memory: "512Mi"
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "user"]
+              command: ["pg_isready", "-U", "user", "-d", "auth_service"]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
