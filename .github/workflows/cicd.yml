@@ -177,15 +177,17 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           # No service_account → plain external_account ADC; no generateAccessToken call.
-          # Requires roles/container.admin on the WIF pool principal (grants GKE API
-          # access + k8s system:masters via GKE's IAM→RBAC mapping).
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: ${{ env.GKE_CLUSTER }}
-          location: ${{ env.GKE_REGION }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+        # Use gcloud directly instead of the action — same WIF credentials,
+        # but gcloud's token handling is more reliable for federated identities.
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --region ${{ env.GKE_REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Apply namespace
         run: kubectl apply -f k8s/namespace.yaml
