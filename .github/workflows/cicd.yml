@@ -203,6 +203,7 @@ jobs:
             --from-literal=ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
             --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
             --from-literal=NEO4J_PASSWORD="${{ secrets.NEO4J_PASSWORD }}" \
+            --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
             --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/auth_service" \
             --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/config_table_db" \
             --dry-run=client -o yaml | kubectl apply -f -

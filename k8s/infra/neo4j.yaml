@@ -19,11 +19,11 @@ spec:
             - {containerPort: 7474, name: http}
             - {containerPort: 7687, name: bolt}
           env:
-            - name: NEO4J_PASSWORD
-              valueFrom:
-                secretKeyRef: {name: shared-secrets, key: NEO4J_PASSWORD}
             - name: NEO4J_AUTH
-              value: "neo4j/$(NEO4J_PASSWORD)"
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: NEO4J_AUTH}
+            - name: NEO4J_server__config__strict__validation__enabled
+              value: "false"
           volumeMounts:
             - {name: data, mountPath: /data}
           readinessProbe:
