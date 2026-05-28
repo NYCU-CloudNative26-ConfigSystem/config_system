@@ -234,11 +234,18 @@ jobs:
       - name: Apply ingress
         run: kubectl apply -f k8s/ingress.yaml
 
+      - name: Clean up stuck terminating pods
+        run: |
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} --no-headers \
+            | awk '/Terminating/{print $1}' \
+            | xargs -r kubectl delete pod --grace-period=0 --force -n ${{ env.K8S_NAMESPACE }} \
+            || true
+
       - name: Wait for all service rollouts
         run: |
           for deploy in service-login service-ssot service-config-table service-frontendui; do
             echo "⏳ Waiting for $deploy…"
-            kubectl rollout status deployment/$deploy -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+            kubectl rollout status deployment/$deploy -n ${{ env.K8S_NAMESPACE }} --timeout=600s
           done
 
       - name: Print access URL
