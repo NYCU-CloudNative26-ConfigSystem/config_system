@@ -22,7 +22,7 @@ spec:
             - name: NEO4J_AUTH
               valueFrom:
                 secretKeyRef: {name: shared-secrets, key: NEO4J_AUTH}
-            - name: NEO4J_server__config__strict__validation__enabled
+            - name: NEO4J_server_config_strict__validation_enabled
               value: "false"
           volumeMounts:
             - {name: data, mountPath: /data}
