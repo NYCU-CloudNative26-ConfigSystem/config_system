@@ -214,9 +214,9 @@ jobs:
           kubectl apply -f k8s/infra/redis.yaml
           kubectl apply -f k8s/infra/neo4j.yaml
           echo "Waiting for databases…"
-          kubectl rollout status statefulset/postgres -n ${{ env.K8S_NAMESPACE }} --timeout=120s
-          kubectl rollout status deployment/redis     -n ${{ env.K8S_NAMESPACE }} --timeout=60s
-          kubectl rollout status statefulset/neo4j    -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+          kubectl rollout status statefulset/postgres -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/redis     -n ${{ env.K8S_NAMESPACE }} --timeout=180s
+          kubectl rollout status statefulset/neo4j    -n ${{ env.K8S_NAMESPACE }} --timeout=360s
 
       # envsubst replaces IMAGE_* placeholders in k8s/services/*.yaml with real registry paths
       - name: Deploy application services
