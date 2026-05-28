@@ -7,3 +7,5 @@ ENV/
 __MACOSX/
 .env
 .claude/
+node_modules/
+package-lock.json
