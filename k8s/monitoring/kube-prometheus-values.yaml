@@ -1,0 +1,110 @@
+# kube-prometheus-stack Helm values for GKE Autopilot
+# https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Disable components that don't work on GKE Autopilot
+nodeExporter:
+  enabled: false   # Autopilot blocks privileged DaemonSets
+
+# GKE manages the control plane — these endpoints don't exist
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+# ── Prometheus ────────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    # Watch ServiceMonitors and PodMonitors across ALL namespaces
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+    podMonitorSelector: {}
+    ruleNamespaceSelector: {}
+    ruleSelector: {}
+    # Persistent storage for metrics history
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+# ── Grafana ───────────────────────────────────────────────────────────────────
+grafana:
+  enabled: true
+  # adminPassword injected via --set grafana.adminPassword=... in CI
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false   # managed by k8s/monitoring/grafana-ingress.yaml
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+  # Pre-load community dashboards
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: Config System
+          type: file
+          disableDeletion: false
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      postgresql:
+        gnetId: 9628
+        revision: 7
+        datasource: Prometheus
+      redis:
+        gnetId: 11835
+        revision: 1
+        datasource: Prometheus
+      kubernetes-pods:
+        gnetId: 6336
+        revision: 1
+        datasource: Prometheus
+
+# ── AlertManager ─────────────────────────────────────────────────────────────
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 1Gi
+
+# ── kube-state-metrics ───────────────────────────────────────────────────────
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 128Mi

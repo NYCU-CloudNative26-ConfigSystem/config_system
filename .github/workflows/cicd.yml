@@ -219,6 +219,29 @@ jobs:
           kubectl rollout status deployment/redis     -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           kubectl rollout status statefulset/neo4j    -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
+      - name: Install Helm
+        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Deploy monitoring stack (Prometheus + Grafana)
+        env:
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+        run: |
+          helm repo add prometheus-community \
+            https://prometheus-community.github.io/helm-charts
+          helm repo update
+          kubectl apply -f k8s/monitoring/namespace.yaml
+          helm upgrade --install kube-prometheus-stack \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --values k8s/monitoring/kube-prometheus-values.yaml \
+            --set grafana.adminPassword="${GRAFANA_PASSWORD}" \
+            --timeout 10m --wait
+          kubectl apply -f k8s/monitoring/postgres-exporter.yaml
+          kubectl apply -f k8s/monitoring/redis-exporter.yaml
+          kubectl apply -f k8s/monitoring/neo4j-servicemonitor.yaml
+          kubectl apply -f k8s/monitoring/alert-rules.yaml
+          kubectl apply -f k8s/monitoring/grafana-ingress.yaml
+
       # envsubst replaces IMAGE_* placeholders in k8s/services/*.yaml with real registry paths
       - name: Deploy application services
         env:
@@ -234,18 +257,29 @@ jobs:
       - name: Apply ingress
         run: kubectl apply -f k8s/ingress.yaml
 
-      - name: Clean up stuck terminating pods
-        run: |
-          kubectl get pods -n ${{ env.K8S_NAMESPACE }} --no-headers \
-            | awk '/Terminating/{print $1}' \
-            | xargs -r kubectl delete pod --grace-period=0 --force -n ${{ env.K8S_NAMESPACE }} \
-            || true
-
       - name: Wait for all service rollouts
         run: |
           for deploy in service-login service-ssot service-config-table service-frontendui; do
             echo "⏳ Waiting for $deploy…"
+            # Force-delete any Terminating pods for this deployment so the rollout can complete
+            kubectl get pods -n ${{ env.K8S_NAMESPACE }} --no-headers \
+              | awk -v d="$deploy" '$0 ~ d && /Terminating/{print $1}' \
+              | xargs -r kubectl delete pod --grace-period=0 --force -n ${{ env.K8S_NAMESPACE }} \
+              || true
             kubectl rollout status deployment/$deploy -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          done
+
+      - name: Dump pod diagnostics on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -o wide
+          echo ""
+          for deploy in service-login service-ssot service-config-table service-frontendui; do
+            echo "=== Events: $deploy ==="
+            kubectl describe deployment/$deploy -n ${{ env.K8S_NAMESPACE }} 2>/dev/null | tail -20 || true
+            echo "=== Logs: $deploy ==="
+            kubectl logs -n ${{ env.K8S_NAMESPACE }} -l app=$deploy --tail=50 --all-containers 2>/dev/null || true
           done
 
       - name: Print access URL
