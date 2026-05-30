@@ -59,17 +59,14 @@ data:
       default_backend redis_back
     backend redis_back
       mode tcp
+      balance first
       option tcp-check
       tcp-check connect
       tcp-check send PING\r\n
       tcp-check expect string +PONG
-      tcp-check send-binary 696e666f207265706c69636174696f6e0d0a
-      tcp-check expect string role:master
-      tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
-      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
-      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
+      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none backup
+      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none backup
 ---
 # ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
 apiVersion: apps/v1
