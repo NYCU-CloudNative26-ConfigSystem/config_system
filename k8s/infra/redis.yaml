@@ -1,3 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: redis-standard-pd
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-standard
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
 # ── Redis ConfigMaps ──────────────────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
@@ -123,6 +133,7 @@ spec:
     - metadata: {name: data}
       spec:
         accessModes: [ReadWriteOnce]
+        storageClassName: redis-standard-pd
         resources:
           requests: {storage: 1Gi}
 ---

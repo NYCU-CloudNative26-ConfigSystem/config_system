@@ -4,7 +4,7 @@ metadata:
   name: neo4j-regional-pd
 provisioner: pd.csi.storage.gke.io
 parameters:
-  type: pd-balanced
+  type: pd-standard
   replication-type: regional-pd
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
