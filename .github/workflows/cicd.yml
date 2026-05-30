@@ -245,6 +245,7 @@ jobs:
             -n ${{ env.K8S_NAMESPACE }} --timeout=600s
           kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout restart deployment/redis-haproxy -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
           kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
@@ -383,6 +384,7 @@ jobs:
             -n ${{ env.K8S_NAMESPACE }} --timeout=600s
           kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout restart deployment/redis-haproxy -n ${{ env.K8S_NAMESPACE }}
           kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
           kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
