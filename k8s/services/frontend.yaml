@@ -4,7 +4,7 @@ metadata:
   name: service-frontendui
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 1
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
@@ -46,3 +46,14 @@ spec:
   # NodePort needed for GKE HTTP(S) Load Balancer backend health checks
   type: NodePort
   ports: [{port: 3000, targetPort: 3000}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-frontendui-pdb
+  namespace: ${K8S_NAMESPACE}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: service-frontendui

@@ -4,7 +4,7 @@ metadata:
   name: service-ssot
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 1
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
@@ -56,3 +56,14 @@ metadata:
 spec:
   selector: {app: service-ssot}
   ports: [{port: 3000, targetPort: 3000}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-ssot-pdb
+  namespace: ${K8S_NAMESPACE}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: service-ssot

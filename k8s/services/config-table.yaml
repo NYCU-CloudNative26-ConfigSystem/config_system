@@ -4,7 +4,7 @@ metadata:
   name: service-config-table
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 1
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
@@ -49,3 +49,14 @@ metadata:
 spec:
   selector: {app: service-config-table}
   ports: [{port: 18001, targetPort: 18001}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-config-table-pdb
+  namespace: ${K8S_NAMESPACE}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: service-config-table

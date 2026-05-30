@@ -4,7 +4,7 @@ metadata:
   name: service-login
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 1
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
@@ -50,3 +50,14 @@ spec:
   selector: {app: service-login}
   ports: [{port: 8000, targetPort: 8000}]
 
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-login-pdb
+  namespace: ${K8S_NAMESPACE}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: service-login
