@@ -57,9 +57,9 @@ data:
       tcp-check expect string role:master
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
-      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1
-      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1
-      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1
+      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
+      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
+      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1 init-addr none
 ---
 # ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
 apiVersion: apps/v1
