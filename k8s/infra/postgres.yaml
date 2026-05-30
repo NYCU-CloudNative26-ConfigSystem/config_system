@@ -12,7 +12,7 @@ spec:
       secret:
         name: postgres-app-creds
       postInitSQL:
-        - GRANT CREATEDB TO "user"
+        - ALTER ROLE "user" CREATEDB
         - CREATE DATABASE config_table_db OWNER "user"
   storage:
     size: 5Gi
