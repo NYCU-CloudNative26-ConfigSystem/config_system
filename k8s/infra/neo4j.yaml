@@ -1,3 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: neo4j-regional-pd
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-balanced
+  replication-type: regional-pd
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -47,6 +58,7 @@ spec:
     - metadata: {name: data}
       spec:
         accessModes: [ReadWriteOnce]
+        storageClassName: neo4j-regional-pd
         resources:
           requests: {storage: 5Gi}
 ---

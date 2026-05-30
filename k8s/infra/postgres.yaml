@@ -1,68 +1,24 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init
-  namespace: ${K8S_NAMESPACE}
-data:
-  init-db.sh: |
-    #!/bin/bash
-    set -e
-    psql -U "$POSTGRES_USER" -c "CREATE DATABASE config_table_db;"
----
-apiVersion: apps/v1
-kind: StatefulSet
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: postgres
   namespace: ${K8S_NAMESPACE}
 spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels: {app: postgres}
-  template:
-    metadata:
-      labels: {app: postgres}
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          env:
-            - {name: POSTGRES_USER, value: user}
-            - {name: POSTGRES_DB, value: auth_service}
-            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef: {name: shared-secrets, key: POSTGRES_PASSWORD}
-          ports: [{containerPort: 5432}]
-          volumeMounts:
-            - {name: data, mountPath: /var/lib/postgresql/data}
-            - {name: init, mountPath: /docker-entrypoint-initdb.d}
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              memory: "512Mi"
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "user", "-d", "auth_service"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
-      volumes:
-        - name: init
-          configMap: {name: postgres-init}
-  volumeClaimTemplates:
-    - metadata: {name: data}
-      spec:
-        accessModes: [ReadWriteOnce]
-        resources:
-          requests: {storage: 5Gi}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: ${K8S_NAMESPACE}
-spec:
-  selector: {app: postgres}
-  ports: [{port: 5432}]
+  instances: 3
+  bootstrap:
+    initdb:
+      database: auth_service
+      owner: user
+      secret:
+        name: postgres-app-creds
+      postInitSQL:
+        - GRANT CREATEDB TO "user"
+        - CREATE DATABASE config_table_db OWNER "user"
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"

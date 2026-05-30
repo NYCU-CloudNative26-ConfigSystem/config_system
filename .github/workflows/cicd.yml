@@ -201,19 +201,41 @@ jobs:
             --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
             --from-literal=NEO4J_PASSWORD="${{ secrets.NEO4J_PASSWORD }}" \
             --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
-            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/auth_service" \
-            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/config_table_db" \
+            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
+            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic postgres-app-creds \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=username="user" \
+            --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Helm + CloudNativePG operator
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg cnpg/cloudnative-pg \
+            --namespace cnpg-system --create-namespace \
+            --wait --timeout 5m
 
       - name: Apply infrastructure (databases)
         run: |
+          # Remove legacy resource types that were replaced (idempotent)
+          kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           for f in k8s/infra/configmap.yaml k8s/infra/postgres.yaml k8s/infra/redis.yaml k8s/infra/neo4j.yaml; do
             envsubst < "$f" | kubectl apply -f -
           done
           echo "Waiting for databases…"
-          kubectl rollout status statefulset/postgres -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-          kubectl rollout status deployment/redis     -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status statefulset/neo4j    -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl wait --for=condition=Ready cluster/postgres \
+            -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
       - name: Deploy application services
         env:
@@ -306,22 +328,41 @@ jobs:
             --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
             --from-literal=NEO4J_PASSWORD="${{ secrets.NEO4J_PASSWORD }}" \
             --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
-            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/auth_service" \
-            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/config_table_db" \
+            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
+            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic postgres-app-creds \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=username="user" \
+            --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Helm + CloudNativePG operator
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg cnpg/cloudnative-pg \
+            --namespace cnpg-system --create-namespace \
+            --wait --timeout 5m
 
       - name: Apply infrastructure (databases)
         run: |
+          # Remove legacy resource types that were replaced (idempotent)
+          kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           for f in k8s/infra/configmap.yaml k8s/infra/postgres.yaml k8s/infra/redis.yaml k8s/infra/neo4j.yaml; do
             envsubst < "$f" | kubectl apply -f -
           done
           echo "Waiting for databases…"
-          kubectl rollout status statefulset/postgres -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-          kubectl rollout status deployment/redis     -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status statefulset/neo4j    -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-
-      - name: Install Helm
-        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          kubectl wait --for=condition=Ready cluster/postgres \
+            -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
       - name: Deploy monitoring stack (Prometheus + Grafana)
         env:

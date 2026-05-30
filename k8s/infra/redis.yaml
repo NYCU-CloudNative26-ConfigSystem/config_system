@@ -1,37 +1,251 @@
+# ── Redis ConfigMaps ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: ${K8S_NAMESPACE}
+data:
+  redis-primary.conf: |
+    bind 0.0.0.0
+    appendonly yes
+    appendfsync everysec
+  redis-replica.conf: |
+    bind 0.0.0.0
+    appendonly yes
+    appendfsync everysec
+    replicaof redis-0.redis-headless 6379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-sentinel-config
+  namespace: ${K8S_NAMESPACE}
+data:
+  sentinel.conf: |
+    bind 0.0.0.0
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel monitor mymaster redis-0.redis-headless 6379 2
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 10000
+    sentinel parallel-syncs mymaster 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-config
+  namespace: ${K8S_NAMESPACE}
+data:
+  haproxy.cfg: |
+    global
+      maxconn 4096
+    defaults
+      mode tcp
+      timeout connect 3s
+      timeout client 10s
+      timeout server 10s
+    frontend redis_front
+      bind *:6379
+      default_backend redis_back
+    backend redis_back
+      mode tcp
+      option tcp-check
+      tcp-check connect
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send "info replication\r\n"
+      tcp-check expect string role:master
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1
+      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1
+      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1
+---
+# ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: redis
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 1
+  serviceName: redis-headless
+  replicas: 3
   selector:
     matchLabels: {app: redis}
   template:
     metadata:
       labels: {app: redis}
     spec:
+      initContainers:
+        - name: redis-init
+          image: redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              idx=$(hostname | grep -o '[0-9]*$')
+              if [ "$idx" = "0" ]; then
+                cp /config/redis-primary.conf /data/redis.conf
+              else
+                cp /config/redis-replica.conf /data/redis.conf
+              fi
+          volumeMounts:
+            - name: redis-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
       containers:
         - name: redis
           image: redis:7-alpine
-          ports: [{containerPort: 6379}]
+          command: ["redis-server", "/data/redis.conf"]
+          ports:
+            - {containerPort: 6379}
           resources:
             requests:
-              cpu: "250m"
-              memory: "256Mi"
+              cpu: "100m"
+              memory: "128Mi"
             limits:
               memory: "256Mi"
           readinessProbe:
             exec:
               command: ["redis-cli", "ping"]
-            initialDelaySeconds: 3
+            initialDelaySeconds: 5
             periodSeconds: 5
+          volumeMounts:
+            - name: redis-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: redis-config
+          configMap: {name: redis-config}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: {storage: 1Gi}
 ---
+# ── Redis Headless Service (stable DNS for each pod) ──────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: ${K8S_NAMESPACE}
+spec:
+  clusterIP: None
+  selector: {app: redis}
+  ports:
+    - {port: 6379}
+---
+# ── Redis Sentinel StatefulSet (3 pods that vote on who is primary) ───────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: ${K8S_NAMESPACE}
+spec:
+  serviceName: redis-sentinel-headless
+  replicas: 3
+  selector:
+    matchLabels: {app: redis-sentinel}
+  template:
+    metadata:
+      labels: {app: redis-sentinel}
+    spec:
+      initContainers:
+        - name: sentinel-init
+          image: redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - cp /config-template/sentinel.conf /sentinel-data/sentinel.conf
+          volumeMounts:
+            - name: sentinel-config
+              mountPath: /config-template
+            - name: sentinel-data
+              mountPath: /sentinel-data
+      containers:
+        - name: sentinel
+          image: redis:7-alpine
+          command: ["redis-sentinel", "/sentinel-data/sentinel.conf"]
+          ports:
+            - {containerPort: 26379}
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              memory: "64Mi"
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: sentinel-data
+              mountPath: /sentinel-data
+      volumes:
+        - name: sentinel-config
+          configMap: {name: redis-sentinel-config}
+        - name: sentinel-data
+          emptyDir: {}
+---
+# ── Sentinel Headless Service (stable DNS per sentinel pod) ───────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-headless
+  namespace: ${K8S_NAMESPACE}
+spec:
+  clusterIP: None
+  selector: {app: redis-sentinel}
+  ports:
+    - {port: 26379}
+---
+# ── HAProxy Deployment (routes :6379 to whoever is currently primary) ─────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-haproxy
+  namespace: ${K8S_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: redis-haproxy}
+  template:
+    metadata:
+      labels: {app: redis-haproxy}
+    spec:
+      containers:
+        - name: haproxy
+          image: haproxy:2.8-alpine
+          ports:
+            - {containerPort: 6379}
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              memory: "64Mi"
+          readinessProbe:
+            tcpSocket: {port: 6379}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy
+      volumes:
+        - name: haproxy-config
+          configMap: {name: haproxy-config}
+---
+# ── Redis Service (what apps connect to — points to HAProxy) ──────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: redis
   namespace: ${K8S_NAMESPACE}
 spec:
-  selector: {app: redis}
-  ports: [{port: 6379}]
+  selector: {app: redis-haproxy}
+  ports:
+    - {port: 6379, targetPort: 6379}
