@@ -1,3 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: postgres-standard-pd
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-standard
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -15,6 +25,7 @@ spec:
         - ALTER ROLE "user" CREATEDB
         - CREATE DATABASE config_table_db OWNER "user"
   storage:
+    storageClass: postgres-standard-pd
     size: 5Gi
   resources:
     requests:
