@@ -45,10 +45,6 @@ data:
     backend redis_back
       mode tcp
       balance first
-      option tcp-check
-      tcp-check connect
-      tcp-check send PING\r\n
-      tcp-check expect string +PONG
       server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1
 ---
 # ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
