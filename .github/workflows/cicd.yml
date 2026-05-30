@@ -224,11 +224,15 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
-          # Remove legacy resource types that were replaced by HA setup (idempotent, safe on fresh cluster)
+          # Remove legacy resource types (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          # Remove Sentinel resources (replaced by simpler primary-only HAProxy routing)
+          kubectl delete statefulset redis-sentinel -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service redis-sentinel-headless -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap redis-sentinel-config -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
           envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
           envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
@@ -240,11 +244,12 @@ jobs:
           echo "Waiting for databases…"
           kubectl wait --for=condition=Ready cluster/postgres \
             -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/redis -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           kubectl rollout restart deployment/redis-haproxy -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
-          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/redis-haproxy  -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          # Ensure redis-0 is master regardless of what config the init container wrote
+          kubectl exec redis-0 -n ${{ env.K8S_NAMESPACE }} -- redis-cli replicaof no one
+          kubectl rollout status statefulset/neo4j -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
       - name: Deploy application services
         env:
@@ -360,11 +365,15 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
-          # Remove legacy resource types that were replaced by HA setup (idempotent, safe on fresh cluster)
+          # Remove legacy resource types (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          # Remove Sentinel resources (replaced by simpler primary-only HAProxy routing)
+          kubectl delete statefulset redis-sentinel -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service redis-sentinel-headless -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap redis-sentinel-config -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
           envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
           envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
@@ -376,11 +385,12 @@ jobs:
           echo "Waiting for databases…"
           kubectl wait --for=condition=Ready cluster/postgres \
             -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/redis -n ${{ env.K8S_NAMESPACE }} --timeout=300s
           kubectl rollout restart deployment/redis-haproxy -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
-          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/redis-haproxy  -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          # Ensure redis-0 is master regardless of what config the init container wrote
+          kubectl exec redis-0 -n ${{ env.K8S_NAMESPACE }} -- redis-cli replicaof no one
+          kubectl rollout status statefulset/neo4j -n ${{ env.K8S_NAMESPACE }} --timeout=600s
 
       - name: Deploy monitoring stack (Prometheus + Grafana)
         env:
