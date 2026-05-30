@@ -49,14 +49,6 @@ data:
   haproxy.cfg: |
     global
       maxconn 4096
-    resolvers kube-dns
-      nameserver dns1 kube-dns.kube-system.svc.cluster.local:53
-      resolve_retries 3
-      timeout resolve 1s
-      timeout retry 1s
-      hold valid 10s
-      hold nx 5s
-      accepted_payload_size 8192
     defaults
       mode tcp
       timeout connect 3s
@@ -72,9 +64,9 @@ data:
       tcp-check connect
       tcp-check send PING\r\n
       tcp-check expect string +PONG
-      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1 resolvers kube-dns resolve-prefer ipv4 init-addr none
-      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1 resolvers kube-dns resolve-prefer ipv4 init-addr none backup
-      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1 resolvers kube-dns resolve-prefer ipv4 init-addr none backup
+      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1
+      server redis-1 redis-1.redis-headless:6379 check inter 3s fall 1 rise 1 backup
+      server redis-2 redis-2.redis-headless:6379 check inter 3s fall 1 rise 1 backup
 ---
 # ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
 apiVersion: apps/v1
