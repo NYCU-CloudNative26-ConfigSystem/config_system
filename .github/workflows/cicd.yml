@@ -224,14 +224,11 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
-          # Remove legacy resource types that were replaced (idempotent)
+          # Remove legacy resource types that were replaced by HA setup (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          # Delete any broken CNPG cluster so initdb runs fresh
-          kubectl delete cluster postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          kubectl delete pvc -l cnpg.io/cluster=postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
           envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
           envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
@@ -363,14 +360,11 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
-          # Remove legacy resource types that were replaced (idempotent)
+          # Remove legacy resource types that were replaced by HA setup (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          # Delete any broken CNPG cluster so initdb runs fresh
-          kubectl delete cluster postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          kubectl delete pvc -l cnpg.io/cluster=postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
           envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
           envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
