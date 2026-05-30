@@ -218,6 +218,9 @@ jobs:
           helm upgrade --install cnpg cnpg/cloudnative-pg \
             --namespace cnpg-system --create-namespace \
             --wait --timeout 5m
+          kubectl wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=cloudnative-pg \
+            -n cnpg-system --timeout=120s
 
       - name: Apply infrastructure (databases)
         run: |
@@ -226,8 +229,13 @@ jobs:
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          for f in k8s/infra/configmap.yaml k8s/infra/postgres.yaml k8s/infra/redis.yaml k8s/infra/neo4j.yaml; do
-            envsubst < "$f" | kubectl apply -f -
+          envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
+          envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
+          envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
+          for i in 1 2 3 4 5; do
+            if envsubst < k8s/infra/postgres.yaml | kubectl apply -f -; then break; fi
+            echo "CNPG webhook not ready yet, retrying in 20s… ($i/5)"
+            sleep 20
           done
           echo "Waiting for databases…"
           kubectl wait --for=condition=Ready cluster/postgres \
@@ -345,6 +353,9 @@ jobs:
           helm upgrade --install cnpg cnpg/cloudnative-pg \
             --namespace cnpg-system --create-namespace \
             --wait --timeout 5m
+          kubectl wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=cloudnative-pg \
+            -n cnpg-system --timeout=120s
 
       - name: Apply infrastructure (databases)
         run: |
@@ -353,8 +364,13 @@ jobs:
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
-          for f in k8s/infra/configmap.yaml k8s/infra/postgres.yaml k8s/infra/redis.yaml k8s/infra/neo4j.yaml; do
-            envsubst < "$f" | kubectl apply -f -
+          envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
+          envsubst < k8s/infra/redis.yaml     | kubectl apply -f -
+          envsubst < k8s/infra/neo4j.yaml     | kubectl apply -f -
+          for i in 1 2 3 4 5; do
+            if envsubst < k8s/infra/postgres.yaml | kubectl apply -f -; then break; fi
+            echo "CNPG webhook not ready yet, retrying in 20s… ($i/5)"
+            sleep 20
           done
           echo "Waiting for databases…"
           kubectl wait --for=condition=Ready cluster/postgres \
