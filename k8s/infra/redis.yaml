@@ -53,7 +53,7 @@ data:
       tcp-check connect
       tcp-check send PING\r\n
       tcp-check expect string +PONG
-      tcp-check send "info replication\r\n"
+      tcp-check send-binary 696e666f207265706c69636174696f6e0d0a
       tcp-check expect string role:master
       tcp-check send QUIT\r\n
       tcp-check expect string +OK
