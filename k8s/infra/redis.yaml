@@ -73,12 +73,10 @@ spec:
             - /bin/sh
             - -c
             - |
-              idx=$(hostname | sed 's/.*-//')
-              if [ "$idx" = "0" ]; then
-                cp /config/redis-primary.conf /data/redis.conf
-              else
-                cp /config/redis-replica.conf /data/redis.conf
-              fi
+              case $(hostname) in
+                *-0) cp /config/redis-primary.conf /data/redis.conf ;;
+                *)   cp /config/redis-replica.conf /data/redis.conf ;;
+              esac
           volumeMounts:
             - name: redis-config
               mountPath: /config
