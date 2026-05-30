@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres-exporter
-  namespace: config-system
+  namespace: ${K8S_NAMESPACE}
 spec:
   replicas: 1
   selector:
@@ -35,7 +35,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres-exporter
-  namespace: config-system
+  namespace: ${K8S_NAMESPACE}
   labels:
     app: postgres-exporter
 spec:
@@ -47,7 +47,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: postgres-exporter
-  namespace: config-system
+  namespace: ${K8S_NAMESPACE}
   labels:
     release: kube-prometheus-stack
 spec:

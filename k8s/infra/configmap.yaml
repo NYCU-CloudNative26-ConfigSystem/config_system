@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: shared-config
-  namespace: config-system
+  namespace: ${K8S_NAMESPACE}
 data:
   # Internal service URLs (Kubernetes DNS)
   REDIS_URL: "redis://redis:6379/0"

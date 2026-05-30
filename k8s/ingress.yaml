@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: config-system-ingress
-  namespace: config-system
+  name: ${K8S_NAMESPACE}-ingress
+  namespace: ${K8S_NAMESPACE}
   annotations:
     # Use GKE's native HTTP(S) Load Balancer (no extra controller needed)
     kubernetes.io/ingress.class: "gce"

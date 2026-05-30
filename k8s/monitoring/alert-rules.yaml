@@ -1,32 +1,32 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: config-system-alerts
-  namespace: config-system
+  name: ${K8S_NAMESPACE}-alerts
+  namespace: ${K8S_NAMESPACE}
   labels:
     release: kube-prometheus-stack
 spec:
   groups:
-    - name: config-system.pods
+    - name: ${K8S_NAMESPACE}.pods
       rules:
         - alert: PodCrashLooping
           expr: |
-            rate(kube_pod_container_status_restarts_total{namespace="config-system"}[5m]) * 60 > 0
+            rate(kube_pod_container_status_restarts_total{namespace="${K8S_NAMESPACE}"}[5m]) * 60 > 0
           for: 5m
           labels:
             severity: critical
-            namespace: config-system
+            namespace: ${K8S_NAMESPACE}
           annotations:
             summary: "Pod {{ $labels.pod }} is crash looping"
             description: "Container {{ $labels.container }} in pod {{ $labels.pod }} has restarted more than once in the last 5 minutes."
 
         - alert: PodNotReady
           expr: |
-            kube_pod_status_ready{namespace="config-system", condition="true"} == 0
+            kube_pod_status_ready{namespace="${K8S_NAMESPACE}", condition="true"} == 0
           for: 5m
           labels:
             severity: warning
-            namespace: config-system
+            namespace: ${K8S_NAMESPACE}
           annotations:
             summary: "Pod {{ $labels.pod }} not ready"
             description: "Pod {{ $labels.pod }} has been in a non-ready state for more than 5 minutes."
@@ -34,35 +34,35 @@ spec:
         - alert: HighMemoryUsage
           expr: |
             (
-              container_memory_working_set_bytes{namespace="config-system", container!=""}
-              / container_spec_memory_limit_bytes{namespace="config-system", container!=""}
+              container_memory_working_set_bytes{namespace="${K8S_NAMESPACE}", container!=""}
+              / container_spec_memory_limit_bytes{namespace="${K8S_NAMESPACE}", container!=""}
             ) > 0.8
           for: 5m
           labels:
             severity: warning
-            namespace: config-system
+            namespace: ${K8S_NAMESPACE}
           annotations:
             summary: "High memory usage in {{ $labels.container }}"
             description: "Container {{ $labels.container }} is using more than 80% of its memory limit."
 
-    - name: config-system.exporters
+    - name: ${K8S_NAMESPACE}.exporters
       rules:
         - alert: PostgresExporterDown
-          expr: up{job="postgres-exporter", namespace="config-system"} == 0
+          expr: up{job="postgres-exporter", namespace="${K8S_NAMESPACE}"} == 0
           for: 2m
           labels:
             severity: critical
-            namespace: config-system
+            namespace: ${K8S_NAMESPACE}
           annotations:
             summary: "Postgres exporter is down"
             description: "Cannot scrape PostgreSQL metrics — database may be unreachable."
 
         - alert: RedisExporterDown
-          expr: up{job="redis-exporter", namespace="config-system"} == 0
+          expr: up{job="redis-exporter", namespace="${K8S_NAMESPACE}"} == 0
           for: 2m
           labels:
             severity: critical
-            namespace: config-system
+            namespace: ${K8S_NAMESPACE}
           annotations:
             summary: "Redis exporter is down"
             description: "Cannot scrape Redis metrics — cache may be unreachable."

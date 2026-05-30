@@ -2,7 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: neo4j
-  namespace: config-system
+  namespace: ${K8S_NAMESPACE}
   labels:
     release: kube-prometheus-stack
 spec:
