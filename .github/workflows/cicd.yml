@@ -203,6 +203,10 @@ jobs:
             --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
             --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
             --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
+            --from-literal=GMAIL_USER="${{ secrets.GMAIL_USER }}" \
+            --from-literal=GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
+            --from-literal=INTERNAL_API_KEY="${{ secrets.INTERNAL_API_KEY }}" \
+            --from-literal=APP_BASE_URL="${{ secrets.APP_BASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic postgres-app-creds \
             --namespace=${{ env.K8S_NAMESPACE }} \
@@ -344,6 +348,10 @@ jobs:
             --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
             --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
             --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
+            --from-literal=GMAIL_USER="${{ secrets.GMAIL_USER }}" \
+            --from-literal=GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
+            --from-literal=INTERNAL_API_KEY="${{ secrets.INTERNAL_API_KEY }}" \
+            --from-literal=APP_BASE_URL="${{ secrets.APP_BASE_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic postgres-app-creds \
             --namespace=${{ env.K8S_NAMESPACE }} \
