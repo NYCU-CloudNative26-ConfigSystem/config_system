@@ -236,6 +236,10 @@ jobs:
           for attempt in 1 2 3; do
             if helm upgrade --install cnpg cnpg/cloudnative-pg \
                 --namespace cnpg-system --create-namespace \
+                --set resources.requests.cpu=250m \
+                --set resources.requests.memory=512Mi \
+                --set resources.limits.cpu=500m \
+                --set resources.limits.memory=512Mi \
                 --wait --timeout 8m --debug; then
               helm_ok=1; break
             fi
@@ -396,6 +400,10 @@ jobs:
           for attempt in 1 2 3; do
             if helm upgrade --install cnpg cnpg/cloudnative-pg \
                 --namespace cnpg-system --create-namespace \
+                --set resources.requests.cpu=250m \
+                --set resources.requests.memory=512Mi \
+                --set resources.limits.cpu=500m \
+                --set resources.limits.memory=512Mi \
                 --wait --timeout 8m --debug; then
               helm_ok=1; break
             fi
