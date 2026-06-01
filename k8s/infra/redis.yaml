@@ -181,7 +181,6 @@ spec:
             - -c
             - |
               cp /config-template/sentinel.conf /data/sentinel.conf
-              echo "sentinel announce-hostname $(hostname).redis-sentinel-headless" >> /data/sentinel.conf
               echo "Waiting for redis-0 to be ready..."
               until redis-cli -h redis-0.redis-headless -p 6379 ping 2>/dev/null; do sleep 2; done
               echo "redis-0 is ready."

@@ -268,11 +268,11 @@ jobs:
           done
           echo "Waiting for databases…"
           kubectl wait --for=condition=Ready cluster/postgres \
-            -n ${{ env.K8S_NAMESPACE }} --timeout=600s
-          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
-          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
-          kubectl rollout status statefulset/neo4j -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+            -n ${{ env.K8S_NAMESPACE }} --timeout=1200s
+          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/neo4j -n ${{ env.K8S_NAMESPACE }} --timeout=900s
 
       - name: Deploy application services
         env:
