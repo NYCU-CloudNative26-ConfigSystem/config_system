@@ -215,17 +215,25 @@ jobs:
             --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Install Helm + CloudNativePG operator
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
+      - name: Install CloudNativePG operator
         run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           helm repo add cnpg https://cloudnative-pg.github.io/charts
           helm repo update
+          helm_ok=0
           for attempt in 1 2 3; do
-            helm upgrade --install cnpg cnpg/cloudnative-pg \
-              --namespace cnpg-system --create-namespace \
-              --wait --timeout 5m && break
+            if helm upgrade --install cnpg cnpg/cloudnative-pg \
+                --namespace cnpg-system --create-namespace \
+                --wait --timeout 8m --debug; then
+              helm_ok=1; break
+            fi
             [ $attempt -lt 3 ] && echo "Attempt $attempt failed, retrying in 30s…" && sleep 30
           done
+          [ "$helm_ok" -eq 1 ] || { echo "CNPG operator failed to install after 3 attempts"; exit 1; }
           kubectl wait --for=condition=Ready pod \
             -l app.kubernetes.io/name=cloudnative-pg \
             -n cnpg-system --timeout=120s
@@ -359,17 +367,25 @@ jobs:
             --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Install Helm + CloudNativePG operator
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
+      - name: Install CloudNativePG operator
         run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           helm repo add cnpg https://cloudnative-pg.github.io/charts
           helm repo update
+          helm_ok=0
           for attempt in 1 2 3; do
-            helm upgrade --install cnpg cnpg/cloudnative-pg \
-              --namespace cnpg-system --create-namespace \
-              --wait --timeout 5m && break
+            if helm upgrade --install cnpg cnpg/cloudnative-pg \
+                --namespace cnpg-system --create-namespace \
+                --wait --timeout 8m --debug; then
+              helm_ok=1; break
+            fi
             [ $attempt -lt 3 ] && echo "Attempt $attempt failed, retrying in 30s…" && sleep 30
           done
+          [ "$helm_ok" -eq 1 ] || { echo "CNPG operator failed to install after 3 attempts"; exit 1; }
           kubectl wait --for=condition=Ready pod \
             -l app.kubernetes.io/name=cloudnative-pg \
             -n cnpg-system --timeout=120s
