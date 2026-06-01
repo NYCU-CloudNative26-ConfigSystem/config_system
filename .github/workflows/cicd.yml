@@ -252,6 +252,8 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
+          # Required by GCE Ingress controller on GKE Standard (no longer auto-deployed)
+          kubectl apply -f k8s/infra/default-http-backend.yaml
           # Remove legacy resource types (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
@@ -416,6 +418,8 @@ jobs:
 
       - name: Apply infrastructure (databases)
         run: |
+          # Required by GCE Ingress controller on GKE Standard (no longer auto-deployed)
+          kubectl apply -f k8s/infra/default-http-backend.yaml
           # Remove legacy resource types (idempotent, safe on fresh cluster)
           kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
           kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
