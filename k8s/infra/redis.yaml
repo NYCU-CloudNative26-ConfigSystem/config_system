@@ -121,10 +121,10 @@ spec:
             - {containerPort: 6379}
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
-              memory: "512Mi"
+              memory: "128Mi"
           readinessProbe:
             exec:
               command: ["redis-cli", "ping"]
@@ -198,10 +198,10 @@ spec:
             - {containerPort: 26379}
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
-              memory: "512Mi"
+              memory: "64Mi"
           readinessProbe:
             exec:
               command: ["redis-cli", "-p", "26379", "ping"]
@@ -270,10 +270,10 @@ spec:
             - {containerPort: 6379}
           resources:
             requests:
-              cpu: "240m"
-              memory: "480Mi"
+              cpu: "40m"
+              memory: "32Mi"
             limits:
-              memory: "480Mi"
+              memory: "32Mi"
           readinessProbe:
             tcpSocket: {port: 6379}
             initialDelaySeconds: 5
@@ -290,7 +290,6 @@ spec:
               memory: "32Mi"
             limits:
               memory: "32Mi"
-            # haproxy pod total: 240m+10m=250m CPU, 480Mi+32Mi=512Mi RAM — Autopilot minimum
           volumeMounts:
             - name: scripts
               mountPath: /scripts
