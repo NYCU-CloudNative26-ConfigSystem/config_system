@@ -84,6 +84,7 @@ services:
       GMAIL_USER: ${GMAIL_USER}
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      APP_BASE_URL: ${APP_BASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
