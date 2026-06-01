@@ -27,7 +27,7 @@ spec:
             - {name: EXPORT_URL, value: "http://service-config-export:18005"}
           resources:
             requests:
-              cpu: "100m"
+              cpu: "50m"
               memory: "256Mi"
             limits:
               memory: "256Mi"

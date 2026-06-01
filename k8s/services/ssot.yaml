@@ -38,7 +38,7 @@ spec:
                 secretKeyRef: {name: shared-secrets, key: ENCRYPTION_KEY}
           resources:
             requests:
-              cpu: "100m"
+              cpu: "50m"
               memory: "256Mi"
             limits:
               memory: "256Mi"
