@@ -224,6 +224,14 @@ jobs:
         run: |
           helm repo add cnpg https://cloudnative-pg.github.io/charts
           helm repo update
+          # Clear any release left in a pending state by a previous failed run
+          HELM_STATUS=$(helm status cnpg --namespace cnpg-system 2>/dev/null \
+            | grep '^STATUS:' | awk '{print $2}' || echo "missing")
+          if [[ "$HELM_STATUS" == pending* ]]; then
+            echo "Helm release cnpg stuck in '$HELM_STATUS', uninstalling before retry…"
+            helm uninstall cnpg --namespace cnpg-system --no-hooks || true
+            sleep 5
+          fi
           helm_ok=0
           for attempt in 1 2 3; do
             if helm upgrade --install cnpg cnpg/cloudnative-pg \
@@ -376,6 +384,14 @@ jobs:
         run: |
           helm repo add cnpg https://cloudnative-pg.github.io/charts
           helm repo update
+          # Clear any release left in a pending state by a previous failed run
+          HELM_STATUS=$(helm status cnpg --namespace cnpg-system 2>/dev/null \
+            | grep '^STATUS:' | awk '{print $2}' || echo "missing")
+          if [[ "$HELM_STATUS" == pending* ]]; then
+            echo "Helm release cnpg stuck in '$HELM_STATUS', uninstalling before retry…"
+            helm uninstall cnpg --namespace cnpg-system --no-hooks || true
+            sleep 5
+          fi
           helm_ok=0
           for attempt in 1 2 3; do
             if helm upgrade --install cnpg cnpg/cloudnative-pg \
