@@ -43,10 +43,10 @@ spec:
                 secretKeyRef: {name: shared-secrets, key: APP_BASE_URL}
           resources:
             requests:
-              cpu: "50m"
-              memory: "192Mi"
+              cpu: "250m"
+              memory: "512Mi"
             limits:
-              memory: "192Mi"
+              memory: "512Mi"
           readinessProbe:
             httpGet: {path: /health, port: 18001}
             initialDelaySeconds: 15
