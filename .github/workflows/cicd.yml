@@ -10,7 +10,7 @@ env:
   GAR_LOCATION: us-central1
   GAR_REPO: config-system
   GKE_CLUSTER: config-system
-  GKE_REGION: us-central1
+  GKE_REGION: us-east1
   # Safe dummy values for CI tests (64 hex chars = valid AES-256 key)
   CI_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   CI_SECRET_KEY: test-secret-key-for-ci-minimum-32-chars
