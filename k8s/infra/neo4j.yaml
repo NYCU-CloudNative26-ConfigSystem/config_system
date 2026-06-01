@@ -50,7 +50,7 @@ spec:
           resources:
             requests:
               memory: "512Mi"
-              cpu: "150m"
+              cpu: "125m"
             limits:
               memory: "1Gi"
   volumeClaimTemplates:
