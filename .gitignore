@@ -9,3 +9,4 @@ __MACOSX/
 .claude/
 node_modules/
 package-lock.json
+seed-users.sh

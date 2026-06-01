@@ -62,3 +62,9 @@ class ExportDocument(BaseModel):
     filename: str
     media_type: str
     content: bytes
+
+
+class ExportPreviewResponse(BaseModel):
+    content: str
+    format: str
+    filename: str
