@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 
 from app.core.exceptions import ExportServiceError, to_http_exception
 from app.routers.deps import CurrentUser, get_current_user
-from app.schemas.export import ConfigHistoryItem, ExportDownloadRequest
+from app.schemas.export import ConfigHistoryItem, ExportDownloadRequest, ExportPreviewResponse
 from app.services.export_service import ExportService
 
 
@@ -30,6 +30,27 @@ async def list_export_versions(
 ):
     try:
         return await svc.list_versions(proj_id, cmp_id, environment, current_user.token)
+    except ExportServiceError as exc:
+        raise to_http_exception(exc) from exc
+
+
+@router.post(
+    "/exports/preview",
+    response_model=ExportPreviewResponse,
+    summary="Preview a config snapshot in the selected format without downloading",
+)
+async def preview_export(
+    payload: ExportDownloadRequest,
+    svc: ExportService = Depends(_svc),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        document = await svc.export_config(payload, current_user.token)
+        return ExportPreviewResponse(
+            content=document.content.decode("utf-8"),
+            format=payload.format,
+            filename=document.filename,
+        )
     except ExportServiceError as exc:
         raise to_http_exception(exc) from exc
 
