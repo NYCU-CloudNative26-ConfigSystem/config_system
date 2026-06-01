@@ -8,7 +8,7 @@ parameters:
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 ---
-# ── Redis ConfigMaps ──────────────────────────────────────────────────────────
+# ── Redis ConfigMap (server configs) ──────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -25,29 +25,64 @@ data:
     appendfsync everysec
     replicaof redis-0.redis-headless 6379
 ---
+# ── Sentinel config template ──────────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-config
+  name: redis-sentinel-config
   namespace: ${K8S_NAMESPACE}
 data:
-  haproxy.cfg: |
-    global
-      maxconn 4096
-    defaults
-      mode tcp
-      timeout connect 3s
-      timeout client 10s
-      timeout server 10s
-    frontend redis_front
-      bind *:6379
-      default_backend redis_back
-    backend redis_back
-      mode tcp
-      balance first
-      server redis-0 redis-0.redis-headless:6379 check inter 3s fall 1 rise 1
+  sentinel.conf: |
+    port 26379
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel monitor mymaster redis-0.redis-headless 6379 2
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 30000
+    sentinel parallel-syncs mymaster 1
 ---
-# ── Redis StatefulSet (3 pods: 1 primary + 2 replicas) ────────────────────────
+# ── HAProxy scripts (init + sentinel watcher) ─────────────────────────────────
+# Stored in a ConfigMap so envsubst never touches the shell variable syntax.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-haproxy-scripts
+  namespace: ${K8S_NAMESPACE}
+data:
+  init.sh: |
+    #!/bin/sh
+    echo "Waiting for Sentinel to be ready..."
+    until redis-cli -h redis-sentinel -p 26379 ping 2>/dev/null; do sleep 3; done
+    RESULT=$(redis-cli -h redis-sentinel -p 26379 SENTINEL get-master-addr-by-name mymaster 2>/dev/null)
+    MASTER_HOST=$(echo "$RESULT" | sed -n '1p')
+    MASTER_PORT=$(echo "$RESULT" | sed -n '2p')
+    MASTER_HOST=${MASTER_HOST:-redis-0.redis-headless}
+    MASTER_PORT=${MASTER_PORT:-6379}
+    echo "Initial primary: $MASTER_HOST:$MASTER_PORT"
+    printf 'global\n  maxconn 4096\ndefaults\n  mode tcp\n  timeout connect 3s\n  timeout client 10s\n  timeout server 10s\nfrontend redis_front\n  bind *:6379\n  default_backend redis_back\nbackend redis_back\n  mode tcp\n  server master %s:%s check inter 3s\n' \
+      "$MASTER_HOST" "$MASTER_PORT" > /live-config/haproxy.cfg
+    echo "HAProxy config initialized."
+  watch.sh: |
+    #!/bin/sh
+    LAST_MASTER=""
+    while true; do
+      sleep 5
+      RESULT=$(redis-cli -h redis-sentinel -p 26379 SENTINEL get-master-addr-by-name mymaster 2>/dev/null)
+      MASTER_HOST=$(echo "$RESULT" | sed -n '1p')
+      MASTER_PORT=$(echo "$RESULT" | sed -n '2p')
+      CURRENT="${MASTER_HOST}:${MASTER_PORT}"
+      if [ -z "$MASTER_HOST" ] || [ "$CURRENT" = "$LAST_MASTER" ]; then continue; fi
+      echo "Primary changed to $CURRENT, updating HAProxy..."
+      printf 'global\n  maxconn 4096\ndefaults\n  mode tcp\n  timeout connect 3s\n  timeout client 10s\n  timeout server 10s\nfrontend redis_front\n  bind *:6379\n  default_backend redis_back\nbackend redis_back\n  mode tcp\n  server master %s:%s check inter 3s\n' \
+        "$MASTER_HOST" "$MASTER_PORT" > /live-config/haproxy.cfg
+      HAPROXY_PID=$(pgrep haproxy 2>/dev/null)
+      if [ -n "$HAPROXY_PID" ]; then
+        kill -HUP "$HAPROXY_PID" && echo "HAProxy reloaded (PID $HAPROXY_PID)"
+      fi
+      LAST_MASTER="$CURRENT"
+    done
+---
+# ── Redis StatefulSet (1 primary + 2 replicas) ────────────────────────────────
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -111,7 +146,7 @@ spec:
         resources:
           requests: {storage: 1Gi}
 ---
-# ── Redis Headless Service (stable DNS for each pod) ──────────────────────────
+# ── Redis Headless Service (stable DNS per pod) ───────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
@@ -123,7 +158,88 @@ spec:
   ports:
     - {port: 6379}
 ---
-# ── HAProxy Deployment (routes :6379 to redis-0, the designated primary) ─────
+# ── Redis Sentinel StatefulSet (3 pods — quorum 2) ───────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: ${K8S_NAMESPACE}
+spec:
+  serviceName: redis-sentinel-headless
+  replicas: 3
+  selector:
+    matchLabels: {app: redis-sentinel}
+  template:
+    metadata:
+      labels: {app: redis-sentinel}
+    spec:
+      initContainers:
+        - name: sentinel-init
+          image: redis:7-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cp /config-template/sentinel.conf /data/sentinel.conf
+              echo "sentinel announce-hostname $(hostname).redis-sentinel-headless" >> /data/sentinel.conf
+              echo "Waiting for redis-0 to be ready..."
+              until redis-cli -h redis-0.redis-headless -p 6379 ping 2>/dev/null; do sleep 2; done
+              echo "redis-0 is ready."
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: data
+              mountPath: /data
+      containers:
+        - name: sentinel
+          image: redis:7-alpine
+          command: ["redis-sentinel", "/data/sentinel.conf"]
+          ports:
+            - {containerPort: 26379}
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              memory: "64Mi"
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-p", "26379", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config-template
+          configMap: {name: redis-sentinel-config}
+        - name: data
+          emptyDir: {}
+---
+# ── Sentinel Headless Service (stable pod DNS) ────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-headless
+  namespace: ${K8S_NAMESPACE}
+spec:
+  clusterIP: None
+  selector: {app: redis-sentinel}
+  ports:
+    - {port: 26379}
+---
+# ── Sentinel ClusterIP Service (what HAProxy queries) ────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: ${K8S_NAMESPACE}
+spec:
+  selector: {app: redis-sentinel}
+  ports:
+    - {port: 26379, targetPort: 26379}
+---
+# ── HAProxy Deployment (Sentinel-aware — auto-follows primary on failover) ────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -137,6 +253,16 @@ spec:
     metadata:
       labels: {app: redis-haproxy}
     spec:
+      shareProcessNamespace: true   # lets the watcher sidecar signal HAProxy
+      initContainers:
+        - name: haproxy-init
+          image: redis:7-alpine
+          command: ["/bin/sh", "/scripts/init.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: live-config
+              mountPath: /live-config
       containers:
         - name: haproxy
           image: haproxy:2.8-alpine
@@ -153,13 +279,31 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts:
-            - name: haproxy-config
+            - name: live-config
               mountPath: /usr/local/etc/haproxy
+        - name: sentinel-watcher
+          image: redis:7-alpine
+          command: ["/bin/sh", "/scripts/watch.sh"]
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              memory: "32Mi"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: live-config
+              mountPath: /live-config
       volumes:
-        - name: haproxy-config
-          configMap: {name: haproxy-config}
+        - name: scripts
+          configMap:
+            name: redis-haproxy-scripts
+            defaultMode: 0755
+        - name: live-config
+          emptyDir: {}
 ---
-# ── Redis Service (what apps connect to — points to HAProxy) ──────────────────
+# ── Redis Service (apps connect here → HAProxy → current primary) ──────────────
 apiVersion: v1
 kind: Service
 metadata:
