@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-config-export
+  namespace: ${K8S_NAMESPACE}
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
+  selector:
+    matchLabels: {app: service-config-export}
+  template:
+    metadata:
+      labels: {app: service-config-export}
+    spec:
+      containers:
+        - name: app
+          image: ${IMAGE_CONFIG_EXPORT}
+          imagePullPolicy: Always
+          ports: [{containerPort: 18005}]
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
+            - {name: CONFIG_SERVICE_URL, value: "http://service-config-table:18001"}
+            - {name: SSOT_SERVICE_URL,   value: "http://service-ssot:3000"}
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              memory: "256Mi"
+          readinessProbe:
+            httpGet: {path: /health, port: 18005}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-config-export
+  namespace: ${K8S_NAMESPACE}
+spec:
+  selector: {app: service-config-export}
+  ports: [{port: 18005, targetPort: 18005}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-config-export-pdb
+  namespace: ${K8S_NAMESPACE}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: service-config-export
