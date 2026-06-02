@@ -113,7 +113,7 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_EXPORT: ${{ needs.build-push.outputs.image }}
+          IMAGE_CONFIG_EXPORT: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-export:${{ github.sha }}
         run: |
           envsubst '${IMAGE_CONFIG_EXPORT}${K8S_NAMESPACE}' < k8s/services/config-export.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-config-export -n ${{ env.K8S_NAMESPACE }} --timeout=300s
@@ -165,7 +165,7 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_EXPORT: ${{ needs.build-push.outputs.image }}
+          IMAGE_CONFIG_EXPORT: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-export:${{ github.sha }}
         run: |
           envsubst '${IMAGE_CONFIG_EXPORT}${K8S_NAMESPACE}' < k8s/services/config-export.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-config-export -n ${{ env.K8S_NAMESPACE }} --timeout=300s

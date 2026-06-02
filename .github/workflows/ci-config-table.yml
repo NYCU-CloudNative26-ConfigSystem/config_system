@@ -122,7 +122,7 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_TABLE: ${{ needs.build-push.outputs.image }}
+          IMAGE_CONFIG_TABLE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
         run: |
           envsubst '${IMAGE_CONFIG_TABLE}${K8S_NAMESPACE}' < k8s/services/config-table.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-config-table -n ${{ env.K8S_NAMESPACE }} --timeout=300s
@@ -174,7 +174,7 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_TABLE: ${{ needs.build-push.outputs.image }}
+          IMAGE_CONFIG_TABLE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
         run: |
           envsubst '${IMAGE_CONFIG_TABLE}${K8S_NAMESPACE}' < k8s/services/config-table.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-config-table -n ${{ env.K8S_NAMESPACE }} --timeout=300s
