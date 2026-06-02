@@ -50,6 +50,8 @@ jobs:
       - run: |
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
             --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+      - name: Ensure namespace
+        run: envsubst < k8s/namespace.yaml | kubectl apply -f -
       - name: Apply changed service manifests
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -91,6 +93,8 @@ jobs:
       - run: |
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
             --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+      - name: Ensure namespace
+        run: envsubst < k8s/namespace.yaml | kubectl apply -f -
       - name: Apply changed service manifests
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
