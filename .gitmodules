@@ -10,3 +10,6 @@
 [submodule "Service_FrontendUI"]
 	path = Service_FrontendUI
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Frontend_UI.git
+[submodule "Service_Config_Export"]
+	path = Service_Config_Export
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Export.git
