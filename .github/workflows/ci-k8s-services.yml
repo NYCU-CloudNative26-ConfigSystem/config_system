@@ -1,0 +1,108 @@
+name: CI · K8s Services
+
+# Triggered when a service manifest changes. Re-applies the manifest
+# using the :latest image already in GAR (no rebuild needed).
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'k8s/services/**'
+      - '.github/workflows/ci-k8s-services.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+
+env:
+  GAR_LOCATION: us-central1
+  GAR_REPO: config-system
+  GKE_CLUSTER: config-system
+  GKE_REGION: us-east1
+
+jobs:
+  deploy-staging:
+    name: Deploy · Staging
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/dev' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+    environment: staging
+    env:
+      K8S_NAMESPACE: config-system-staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+      - run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+      - name: Apply changed service manifests
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          REGISTRY="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}"
+          export IMAGE_CONFIG_EXPORT="$REGISTRY/config-export:latest"
+          export IMAGE_CONFIG_TABLE="$REGISTRY/config-table:latest"
+          export IMAGE_FRONTEND="$REGISTRY/frontend:latest"
+          export IMAGE_LOGIN="$REGISTRY/login:latest"
+          export IMAGE_SSOT="$REGISTRY/ssot:latest"
+          export IMAGE_DUMMY_APP="$REGISTRY/dummy-app:latest"
+          for f in k8s/services/*.yaml; do
+            echo "Applying $f …"
+            envsubst < "$f" | kubectl apply -f -
+          done
+
+  deploy-production:
+    name: Deploy · Production
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
+    environment: production
+    env:
+      K8S_NAMESPACE: config-system
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+      - run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+      - name: Apply changed service manifests
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          REGISTRY="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}"
+          export IMAGE_CONFIG_EXPORT="$REGISTRY/config-export:latest"
+          export IMAGE_CONFIG_TABLE="$REGISTRY/config-table:latest"
+          export IMAGE_FRONTEND="$REGISTRY/frontend:latest"
+          export IMAGE_LOGIN="$REGISTRY/login:latest"
+          export IMAGE_SSOT="$REGISTRY/ssot:latest"
+          export IMAGE_DUMMY_APP="$REGISTRY/dummy-app:latest"
+          for f in k8s/services/*.yaml; do
+            echo "Applying $f …"
+            envsubst < "$f" | kubectl apply -f -
+          done
