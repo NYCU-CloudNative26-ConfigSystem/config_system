@@ -122,10 +122,12 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_TABLE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          [ -n "$GCP_PROJECT_ID" ] || { echo "❌ GCP_PROJECT_ID secret is not set"; exit 1; }
+          export IMAGE_CONFIG_TABLE="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}/config-table:${GITHUB_SHA}"
           envsubst '${IMAGE_CONFIG_TABLE}${K8S_NAMESPACE}' < k8s/services/config-table.yaml | kubectl apply -f -
-          kubectl rollout status deployment/service-config-table -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/service-config-table -n "${K8S_NAMESPACE}" --timeout=300s
 
   deploy-production:
     name: Deploy · Production
@@ -174,7 +176,9 @@ jobs:
           }
       - name: Deploy
         env:
-          IMAGE_CONFIG_TABLE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/config-table:${{ github.sha }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          [ -n "$GCP_PROJECT_ID" ] || { echo "❌ GCP_PROJECT_ID secret is not set"; exit 1; }
+          export IMAGE_CONFIG_TABLE="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}/config-table:${GITHUB_SHA}"
           envsubst '${IMAGE_CONFIG_TABLE}${K8S_NAMESPACE}' < k8s/services/config-table.yaml | kubectl apply -f -
-          kubectl rollout status deployment/service-config-table -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/service-config-table -n "${K8S_NAMESPACE}" --timeout=300s
