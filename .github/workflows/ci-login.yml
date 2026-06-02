@@ -89,7 +89,7 @@ jobs:
     name: Deploy · Staging
     runs-on: ubuntu-latest
     needs: build-push
-    if: github.ref == 'refs/heads/dev'
+    if: needs.build-push.result == 'success' && github.ref == 'refs/heads/dev'
     environment: staging
     env:
       K8S_NAMESPACE: config-system-staging
@@ -135,14 +135,14 @@ jobs:
         env:
           IMAGE_LOGIN: ${{ needs.build-push.outputs.image }}
         run: |
-          envsubst < k8s/services/login.yaml | kubectl apply -f -
+          envsubst '${IMAGE_LOGIN}${K8S_NAMESPACE}' < k8s/services/login.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-login -n ${{ env.K8S_NAMESPACE }} --timeout=300s
 
   deploy-production:
     name: Deploy · Production
     runs-on: ubuntu-latest
     needs: build-push
-    if: github.ref == 'refs/heads/main'
+    if: needs.build-push.result == 'success' && github.ref == 'refs/heads/main'
     environment: production
     env:
       K8S_NAMESPACE: config-system
@@ -188,5 +188,5 @@ jobs:
         env:
           IMAGE_LOGIN: ${{ needs.build-push.outputs.image }}
         run: |
-          envsubst < k8s/services/login.yaml | kubectl apply -f -
+          envsubst '${IMAGE_LOGIN}${K8S_NAMESPACE}' < k8s/services/login.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-login -n ${{ env.K8S_NAMESPACE }} --timeout=300s

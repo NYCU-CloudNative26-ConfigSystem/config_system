@@ -62,7 +62,7 @@ jobs:
     name: Deploy · Staging
     runs-on: ubuntu-latest
     needs: build-push
-    if: github.ref == 'refs/heads/dev'
+    if: needs.build-push.result == 'success' && github.ref == 'refs/heads/dev'
     environment: staging
     env:
       K8S_NAMESPACE: config-system-staging
@@ -107,14 +107,14 @@ jobs:
         env:
           IMAGE_FRONTEND: ${{ needs.build-push.outputs.image }}
         run: |
-          envsubst < k8s/services/frontend.yaml | kubectl apply -f -
+          envsubst '${IMAGE_FRONTEND}${K8S_NAMESPACE}' < k8s/services/frontend.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-frontendui -n ${{ env.K8S_NAMESPACE }} --timeout=300s
 
   deploy-production:
     name: Deploy · Production
     runs-on: ubuntu-latest
     needs: build-push
-    if: github.ref == 'refs/heads/main'
+    if: needs.build-push.result == 'success' && github.ref == 'refs/heads/main'
     environment: production
     env:
       K8S_NAMESPACE: config-system
@@ -159,5 +159,5 @@ jobs:
         env:
           IMAGE_FRONTEND: ${{ needs.build-push.outputs.image }}
         run: |
-          envsubst < k8s/services/frontend.yaml | kubectl apply -f -
+          envsubst '${IMAGE_FRONTEND}${K8S_NAMESPACE}' < k8s/services/frontend.yaml | kubectl apply -f -
           kubectl rollout status deployment/service-frontendui -n ${{ env.K8S_NAMESPACE }} --timeout=300s
