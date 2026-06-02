@@ -3,10 +3,14 @@ name: CI · Dummy App
 on:
   push:
     branches: [main, dev]
-    paths: ['Service_DummyApp/**']
+    paths:
+      - 'Service_DummyApp/**'
+      - '.github/workflows/ci-dummy-app.yml'
   pull_request:
     branches: [main]
-    paths: ['Service_DummyApp/**']
+    paths:
+      - 'Service_DummyApp/**'
+      - '.github/workflows/ci-dummy-app.yml'
   workflow_dispatch:
 
 env:

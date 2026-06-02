@@ -3,10 +3,14 @@ name: CI · SSOT
 on:
   push:
     branches: [main, dev]
-    paths: ['Service_SSOT']
+    paths:
+      - 'Service_SSOT/**'
+      - '.github/workflows/ci-ssot.yml'
   pull_request:
     branches: [main]
-    paths: ['Service_SSOT']
+    paths:
+      - 'Service_SSOT/**'
+      - '.github/workflows/ci-ssot.yml'
   workflow_dispatch:
 
 env:

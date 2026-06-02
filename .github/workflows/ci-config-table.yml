@@ -3,10 +3,14 @@ name: CI · Config Table
 on:
   push:
     branches: [main, dev]
-    paths: ['Service_Config_Table']
+    paths:
+      - 'Service_Config_Table/**'
+      - '.github/workflows/ci-config-table.yml'
   pull_request:
     branches: [main]
-    paths: ['Service_Config_Table']
+    paths:
+      - 'Service_Config_Table/**'
+      - '.github/workflows/ci-config-table.yml'
   workflow_dispatch:
 
 env:

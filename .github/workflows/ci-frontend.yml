@@ -3,10 +3,14 @@ name: CI · Frontend
 on:
   push:
     branches: [main, dev]
-    paths: ['Service_FrontendUI']
+    paths:
+      - 'Service_FrontendUI/**'
+      - '.github/workflows/ci-frontend.yml'
   pull_request:
     branches: [main]
-    paths: ['Service_FrontendUI']
+    paths:
+      - 'Service_FrontendUI/**'
+      - '.github/workflows/ci-frontend.yml'
   workflow_dispatch:
 
 env:

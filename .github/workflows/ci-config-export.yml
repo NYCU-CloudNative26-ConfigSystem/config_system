@@ -3,10 +3,14 @@ name: CI · Config Export
 on:
   push:
     branches: [main, dev]
-    paths: ['Service_Config_Export']
+    paths:
+      - 'Service_Config_Export/**'
+      - '.github/workflows/ci-config-export.yml'
   pull_request:
     branches: [main]
-    paths: ['Service_Config_Export']
+    paths:
+      - 'Service_Config_Export/**'
+      - '.github/workflows/ci-config-export.yml'
   workflow_dispatch:
 
 env:
