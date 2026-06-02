@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dummy App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 14px 32px; display: flex; align-items: center; gap: 12px; }
+    .logo { width: 34px; height: 34px; background: #4f46e5; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+    header h1 { font-size: 15px; font-weight: 600; }
+    .env-badge { margin-left: auto; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #e0e7ff; color: #4338ca; text-transform: capitalize; }
+    .fmt-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-family: monospace; }
+
+    main { max-width: 900px; margin: 36px auto; padding: 0 24px; }
+
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px; }
+    .card-header { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .card-header-left { display: flex; flex-direction: column; gap: 2px; }
+    .card-header h2 { font-size: 13px; font-weight: 600; }
+    .card-header .sub { font-size: 11px; color: #94a3b8; font-family: monospace; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 10px 20px; text-align: left; font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; background: #f8fafc; border-bottom: 1px solid #f1f5f9; }
+    tbody tr { border-bottom: 1px solid #f8fafc; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+    td { padding: 10px 20px; font-size: 13px; vertical-align: top; }
+    td.key { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #4f46e5; white-space: nowrap; width: 1%; font-weight: 500; }
+    td.val { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #334155; word-break: break-all; }
+
+    .empty { padding: 60px 24px; text-align: center; }
+    .empty-icon { font-size: 32px; margin-bottom: 12px; }
+    .empty h2 { font-size: 15px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    .empty p { font-size: 13px; color: #cbd5e1; max-width: 320px; margin: 0 auto; }
+
+    footer { text-align: center; font-size: 11px; color: #cbd5e1; padding: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">DA</div>
+    <h1>Dummy App</h1>
+    {% if meta %}
+      <span class="fmt-badge">.{{ meta.format }}</span>
+      <span class="env-badge">{{ meta.environment }}</span>
+    {% endif %}
+  </header>
+
+  <main>
+    {% if meta and rows %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <h2>{{ meta.filename }}</h2>
+          <span class="sub">{{ meta.version_uuid }}</span>
+        </div>
+        <span class="fmt-badge">.{{ meta.format }}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key, value in rows %}
+          <tr>
+            <td class="key">{{ key }}</td>
+            <td class="val">{{ value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <footer>Deployed {{ meta.deployed_at }} &nbsp;·&nbsp; {{ meta.environment }}</footer>
+    {% else %}
+    <div class="card">
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+        <h2>No config deployed yet</h2>
+        <p>Approve a config snapshot and click Deploy to push a file here.</p>
+      </div>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>
