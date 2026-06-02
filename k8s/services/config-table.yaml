@@ -4,7 +4,7 @@ metadata:
   name: service-config-table
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 3
+  replicas: ${REPLICAS}
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
