@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dummy App — Config Viewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+    header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 16px 32px; display: flex; align-items: center; gap: 12px; }
+    .logo { width: 36px; height: 36px; background: #4f46e5; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 12px; }
+    header h1 { font-size: 15px; font-weight: 600; color: #1e293b; }
+    header .badge { margin-left: auto; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #e0e7ff; color: #4338ca; text-transform: capitalize; }
+    main { max-width: 860px; margin: 40px auto; padding: 0 24px; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; }
+    .card-header { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+    .card-header h2 { font-size: 13px; font-weight: 600; color: #1e293b; }
+    .card-header .meta { font-size: 11px; color: #94a3b8; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { padding: 10px 24px; text-align: left; font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #f1f5f9; }
+    td { padding: 12px 24px; border-bottom: 1px solid #f8fafc; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .key { font-weight: 600; color: #334155; }
+    .val { font-family: 'SF Mono', 'Fira Code', monospace; color: #475569; word-break: break-all; }
+    .val.nested { background: #f8fafc; border-radius: 8px; padding: 8px 12px; display: block; white-space: pre-wrap; font-size: 12px; }
+    .empty { padding: 60px 24px; text-align: center; color: #94a3b8; font-size: 14px; }
+    .empty strong { display: block; font-size: 16px; margin-bottom: 8px; color: #cbd5e1; }
+    footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #cbd5e1; }
+    .uuid { font-family: monospace; font-size: 11px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">CS</div>
+    <h1>Dummy App</h1>
+    {% if payload %}
+    <span class="badge">{{ payload.environment }}</span>
+    {% endif %}
+  </header>
+
+  <main>
+    {% if payload and payload.config %}
+    <div class="card">
+      <div class="card-header">
+        <h2>Deployed config</h2>
+        <span class="meta uuid">{{ payload.version_uuid }}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40%">Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key, val in payload.config.items() %}
+          <tr>
+            <td class="key">{{ key }}</td>
+            <td class="val">
+              {% if val is mapping or val is iterable and val is not string %}
+              <span class="nested">{{ val | tojson(indent=2) }}</span>
+              {% else %}
+              {{ val }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <footer>Last deployed {{ payload.deployed_at }} &nbsp;·&nbsp; Environment: {{ payload.environment }}</footer>
+    {% else %}
+    <div class="card">
+      <div class="empty">
+        <strong>No config deployed yet</strong>
+        Approve a config snapshot and click Deploy to push it here.
+      </div>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>
