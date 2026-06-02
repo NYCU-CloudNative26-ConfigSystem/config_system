@@ -1,0 +1,268 @@
+name: CI · Infra
+
+# Triggered when k8s infra config changes, or manually for first-time bootstrap.
+# This workflow manages shared infrastructure (databases, ingress, monitoring).
+# Run this BEFORE deploying services to a new environment.
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'k8s/infra/**'
+      - 'k8s/namespace.yaml'
+      - 'k8s/ingress.yaml'
+      - 'k8s/monitoring/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to apply infra to'
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production, both]
+
+env:
+  GKE_CLUSTER: config-system
+  GKE_REGION: us-east1
+
+jobs:
+  deploy-staging:
+    name: Infra · Staging
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/dev' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.environment == 'staging' || inputs.environment == 'both'))
+    environment: staging
+    env:
+      K8S_NAMESPACE: config-system-staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+      - run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Apply namespace
+        run: envsubst < k8s/namespace.yaml | kubectl apply -f -
+
+      - name: Apply shared secrets
+        run: |
+          kubectl create secret generic shared-secrets \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+            --from-literal=ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=NEO4J_PASSWORD="${{ secrets.NEO4J_PASSWORD }}" \
+            --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
+            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
+            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
+            --from-literal=GMAIL_USER="${{ secrets.GMAIL_USER }}" \
+            --from-literal=GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
+            --from-literal=INTERNAL_API_KEY="${{ secrets.INTERNAL_API_KEY }}" \
+            --from-literal=APP_BASE_URL="${{ secrets.APP_BASE_URL }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic postgres-app-creds \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=username="user" \
+            --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
+      - name: Install CloudNativePG operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          HELM_STATUS=$(helm status cnpg --namespace cnpg-system 2>/dev/null \
+            | grep '^STATUS:' | awk '{print $2}' || echo "missing")
+          if [[ "$HELM_STATUS" == pending* ]]; then
+            echo "Helm release stuck in '$HELM_STATUS', uninstalling before retry…"
+            helm uninstall cnpg --namespace cnpg-system --no-hooks || true
+            sleep 5
+          fi
+          helm_ok=0
+          for attempt in 1 2 3; do
+            if helm upgrade --install cnpg cnpg/cloudnative-pg \
+                --namespace cnpg-system --create-namespace \
+                --set resources.requests.cpu=250m \
+                --set resources.requests.memory=512Mi \
+                --set resources.limits.cpu=500m \
+                --set resources.limits.memory=512Mi \
+                --wait --timeout 8m --debug; then
+              helm_ok=1; break
+            fi
+            [ $attempt -lt 3 ] && echo "Attempt $attempt failed, retrying in 30s…" && sleep 30
+          done
+          [ "$helm_ok" -eq 1 ] || { echo "CNPG operator failed after 3 attempts"; exit 1; }
+          kubectl wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=cloudnative-pg \
+            -n cnpg-system --timeout=120s
+
+      - name: Apply infrastructure (databases)
+        run: |
+          kubectl apply -f k8s/infra/default-http-backend.yaml
+          kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
+          envsubst '${K8S_NAMESPACE}' < k8s/infra/redis.yaml | kubectl apply -f -
+          envsubst < k8s/infra/neo4j.yaml | kubectl apply -f -
+          for i in 1 2 3 4 5; do
+            if envsubst < k8s/infra/postgres.yaml | kubectl apply -f -; then break; fi
+            echo "CNPG webhook not ready yet, retrying in 20s… ($i/5)"
+            sleep 20
+          done
+          echo "Waiting for databases…"
+          kubectl wait --for=condition=Ready cluster/postgres \
+            -n ${{ env.K8S_NAMESPACE }} --timeout=1200s
+          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=900s
+
+      - name: Apply ingress
+        run: envsubst < k8s/ingress.yaml | kubectl apply -f -
+
+  deploy-production:
+    name: Infra · Production
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.environment == 'production' || inputs.environment == 'both'))
+    environment: production
+    env:
+      K8S_NAMESPACE: config-system
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+      - run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --region ${{ env.GKE_REGION }} --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Apply namespace
+        run: envsubst < k8s/namespace.yaml | kubectl apply -f -
+
+      - name: Apply shared secrets
+        run: |
+          kubectl create secret generic shared-secrets \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+            --from-literal=ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=NEO4J_PASSWORD="${{ secrets.NEO4J_PASSWORD }}" \
+            --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
+            --from-literal=DATABASE_URL_LOGIN="postgresql://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/auth_service" \
+            --from-literal=DATABASE_URL_CONFIG="postgresql+asyncpg://user:${{ secrets.POSTGRES_PASSWORD }}@postgres-rw:5432/config_table_db" \
+            --from-literal=GMAIL_USER="${{ secrets.GMAIL_USER }}" \
+            --from-literal=GMAIL_APP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}" \
+            --from-literal=INTERNAL_API_KEY="${{ secrets.INTERNAL_API_KEY }}" \
+            --from-literal=APP_BASE_URL="${{ secrets.APP_BASE_URL }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic postgres-app-creds \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --from-literal=username="user" \
+            --from-literal=password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
+      - name: Install CloudNativePG operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          HELM_STATUS=$(helm status cnpg --namespace cnpg-system 2>/dev/null \
+            | grep '^STATUS:' | awk '{print $2}' || echo "missing")
+          if [[ "$HELM_STATUS" == pending* ]]; then
+            echo "Helm release stuck in '$HELM_STATUS', uninstalling before retry…"
+            helm uninstall cnpg --namespace cnpg-system --no-hooks || true
+            sleep 5
+          fi
+          helm_ok=0
+          for attempt in 1 2 3; do
+            if helm upgrade --install cnpg cnpg/cloudnative-pg \
+                --namespace cnpg-system --create-namespace \
+                --set resources.requests.cpu=250m \
+                --set resources.requests.memory=512Mi \
+                --set resources.limits.cpu=500m \
+                --set resources.limits.memory=512Mi \
+                --wait --timeout 8m --debug; then
+              helm_ok=1; break
+            fi
+            [ $attempt -lt 3 ] && echo "Attempt $attempt failed, retrying in 30s…" && sleep 30
+          done
+          [ "$helm_ok" -eq 1 ] || { echo "CNPG operator failed after 3 attempts"; exit 1; }
+          kubectl wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=cloudnative-pg \
+            -n cnpg-system --timeout=120s
+
+      - name: Apply infrastructure (databases)
+        run: |
+          kubectl apply -f k8s/infra/default-http-backend.yaml
+          kubectl delete deployment redis -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete statefulset postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete service postgres -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          kubectl delete configmap postgres-init -n ${{ env.K8S_NAMESPACE }} --ignore-not-found=true
+          envsubst < k8s/infra/configmap.yaml | kubectl apply -f -
+          envsubst '${K8S_NAMESPACE}' < k8s/infra/redis.yaml | kubectl apply -f -
+          envsubst < k8s/infra/neo4j.yaml | kubectl apply -f -
+          for i in 1 2 3 4 5; do
+            if envsubst < k8s/infra/postgres.yaml | kubectl apply -f -; then break; fi
+            echo "CNPG webhook not ready yet, retrying in 20s… ($i/5)"
+            sleep 20
+          done
+          echo "Waiting for databases…"
+          kubectl wait --for=condition=Ready cluster/postgres \
+            -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+          kubectl rollout status statefulset/redis          -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status statefulset/redis-sentinel -n ${{ env.K8S_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/redis-haproxy   -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          kubectl rollout status statefulset/neo4j          -n ${{ env.K8S_NAMESPACE }} --timeout=600s
+
+      - name: Deploy monitoring stack
+        env:
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          kubectl apply -f k8s/monitoring/namespace.yaml
+          helm upgrade --install kube-prometheus-stack \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --values k8s/monitoring/kube-prometheus-values.yaml \
+            --set grafana.adminPassword="${GRAFANA_PASSWORD}" \
+            --timeout 10m --wait
+          envsubst < k8s/monitoring/postgres-exporter.yaml | kubectl apply -f -
+          envsubst < k8s/monitoring/redis-exporter.yaml    | kubectl apply -f -
+          envsubst < k8s/monitoring/neo4j-servicemonitor.yaml | kubectl apply -f -
+          envsubst < k8s/monitoring/alert-rules.yaml       | kubectl apply -f -
+          kubectl apply -f k8s/monitoring/grafana-ingress.yaml
+
+      - name: Apply ingress
+        run: envsubst < k8s/ingress.yaml | kubectl apply -f -

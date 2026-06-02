@@ -49,6 +49,7 @@ services:
       DATABASE_URL: postgresql://user:password@postgres:5432/auth_service
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +81,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/config_table_db
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      APP_BASE_URL: ${APP_BASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,9 +98,18 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CONFIG_SERVICE_URL: http://service-config-table:18001
       SSOT_SERVICE_URL: http://service-ssot:3000
+      GITHUB_DEPLOY_TOKEN: ${GITHUB_DEPLOY_TOKEN:-}
+      GITHUB_REPO_OWNER: ${GITHUB_REPO_OWNER:-}
+      GITHUB_REPO_NAME: ${GITHUB_REPO_NAME:-}
     depends_on:
     - service-config-table
     - service-ssot
+  service-dummy-app:
+    build: ./Service_DummyApp
+    ports:
+    - 18010:8080
+    volumes:
+    - dummy_config:/config
   frontend-ui:
     build: ./Service_FrontendUI
     ports:
@@ -113,3 +127,4 @@ services:
 volumes:
   postgres_data: null
   neo4j_data: null
+  dummy_config: null

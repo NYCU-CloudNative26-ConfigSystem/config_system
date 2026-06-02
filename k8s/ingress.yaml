@@ -7,6 +7,11 @@ metadata:
     # Use GKE's native HTTP(S) Load Balancer (no extra controller needed)
     kubernetes.io/ingress.class: "gce"
 spec:
+  defaultBackend:
+    service:
+      name: service-frontendui
+      port:
+        number: 3000
   rules:
     - http:
         paths:

@@ -1,0 +1,29 @@
+# Production overrides — removes all backend port exposures so only the
+# frontend is reachable from outside the Docker network.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# The INTERNAL_API_KEY is still required: Service_Config_Table calls
+# Service_Login's /internal/users/emails endpoint with it even over the
+# internal network.
+
+services:
+  neo4j:
+    ports: []
+
+  service-login:
+    ports: []
+
+  service-ssot:
+    ports: []
+
+  service-config-table:
+    ports: []
+
+  service-config-export:
+    ports: []
+
+  frontend-ui:
+    ports:
+      - "80:3000"

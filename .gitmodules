@@ -1,12 +1,20 @@
 [submodule "Service_Login"]
 	path = Service_Login
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Login.git
+	branch = dev
 [submodule "Service_SSOT"]
 	path = Service_SSOT
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_SSOT.git
+	branch = dev
 [submodule "Service_Config_Table"]
 	path = Service_Config_Table
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Table.git
+	branch = dev
 [submodule "Service_FrontendUI"]
 	path = Service_FrontendUI
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Frontend_UI.git
+	branch = dev
+[submodule "Service_Config_Export"]
+	path = Service_Config_Export
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Export.git
+	branch = dev

@@ -29,12 +29,24 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
+            - name: GMAIL_USER
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: GMAIL_USER}
+            - name: GMAIL_APP_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: GMAIL_APP_PASSWORD}
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: INTERNAL_API_KEY}
+            - name: APP_BASE_URL
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: APP_BASE_URL}
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
+              cpu: "50m"
+              memory: "128Mi"
             limits:
-              memory: "512Mi"
+              memory: "256Mi"
           readinessProbe:
             httpGet: {path: /health, port: 18001}
             initialDelaySeconds: 15
