@@ -49,6 +49,7 @@ metadata:
   name: dummy-app
   namespace: ${K8S_NAMESPACE}
 spec:
+  type: LoadBalancer
   selector:
     app: dummy-app
   ports:
