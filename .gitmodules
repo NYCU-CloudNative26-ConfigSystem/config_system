@@ -18,3 +18,6 @@
 	path = Service_Config_Export
 	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_Config_Export.git
 	branch = dev
+[submodule "Service_DummyApp"]
+	path = Service_DummyApp
+	url = https://github.com/NYCU-CloudNative26-ConfigSystem/Service_DummyApp.git
