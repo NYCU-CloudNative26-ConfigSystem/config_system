@@ -25,6 +25,15 @@ spec:
                 secretKeyRef: {name: shared-secrets, key: SECRET_KEY}
             - {name: CONFIG_SERVICE_URL, value: "http://service-config-table:18001"}
             - {name: SSOT_SERVICE_URL,   value: "http://service-ssot:3000"}
+            - name: GITHUB_DEPLOY_TOKEN
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: GITHUB_DEPLOY_TOKEN}
+            - name: GITHUB_REPO_OWNER
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: GITHUB_REPO_OWNER}
+            - name: GITHUB_REPO_NAME
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: GITHUB_REPO_NAME}
           resources:
             requests:
               cpu: "50m"

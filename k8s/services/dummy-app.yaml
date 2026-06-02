@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dummy-app-config
+  namespace: config-system
+data:
+  config_file: ""
+  meta.json: "{}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-app
+  namespace: config-system
+  labels:
+    app: dummy-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-app
+  template:
+    metadata:
+      labels:
+        app: dummy-app
+    spec:
+      containers:
+        - name: dummy-app
+          image: ${IMAGE_DUMMY_APP}
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: dummy-app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dummy-app
+  namespace: config-system
+spec:
+  selector:
+    app: dummy-app
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -98,9 +98,18 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       CONFIG_SERVICE_URL: http://service-config-table:18001
       SSOT_SERVICE_URL: http://service-ssot:3000
+      GITHUB_DEPLOY_TOKEN: ${GITHUB_DEPLOY_TOKEN:-}
+      GITHUB_REPO_OWNER: ${GITHUB_REPO_OWNER:-}
+      GITHUB_REPO_NAME: ${GITHUB_REPO_NAME:-}
     depends_on:
     - service-config-table
     - service-ssot
+  service-dummy-app:
+    build: ./Service_DummyApp
+    ports:
+    - 18010:8080
+    volumes:
+    - dummy_config:/config
   frontend-ui:
     build: ./Service_FrontendUI
     ports:
@@ -118,3 +127,4 @@ services:
 volumes:
   postgres_data: null
   neo4j_data: null
+  dummy_config: null
