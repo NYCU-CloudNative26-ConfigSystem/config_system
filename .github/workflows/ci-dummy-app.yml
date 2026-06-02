@@ -90,7 +90,7 @@ jobs:
         run: |
           [ -n "$GCP_PROJECT_ID" ] || { echo "❌ GCP_PROJECT_ID secret is not set"; exit 1; }
           export IMAGE_DUMMY_APP="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}/dummy-app:${GITHUB_SHA}"
-          envsubst '${IMAGE_DUMMY_APP}' < k8s/services/dummy-app.yaml | kubectl apply -f -
+          envsubst '${IMAGE_DUMMY_APP}${K8S_NAMESPACE}' < k8s/services/dummy-app.yaml | kubectl apply -f -
           kubectl rollout status deployment/dummy-app -n "${K8S_NAMESPACE}" --timeout=300s
 
   deploy-production:
@@ -125,5 +125,5 @@ jobs:
         run: |
           [ -n "$GCP_PROJECT_ID" ] || { echo "❌ GCP_PROJECT_ID secret is not set"; exit 1; }
           export IMAGE_DUMMY_APP="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPO}/dummy-app:${GITHUB_SHA}"
-          envsubst '${IMAGE_DUMMY_APP}' < k8s/services/dummy-app.yaml | kubectl apply -f -
+          envsubst '${IMAGE_DUMMY_APP}${K8S_NAMESPACE}' < k8s/services/dummy-app.yaml | kubectl apply -f -
           kubectl rollout status deployment/dummy-app -n "${K8S_NAMESPACE}" --timeout=300s
