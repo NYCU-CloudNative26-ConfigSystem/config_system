@@ -10,16 +10,22 @@ from starlette.requests import Request
 app = FastAPI(title="Dummy App")
 templates = Jinja2Templates(directory="templates")
 
-CONFIG_PATH = Path(os.getenv("CONFIG_PATH", "/config/payload.json"))
+CONFIG_FILE = Path(os.getenv("CONFIG_FILE", "/config/config_file"))
+META_FILE = Path(os.getenv("META_FILE", "/config/meta.json"))
 
 
-def _load_payload() -> dict | None:
+def _load():
     try:
-        text = CONFIG_PATH.read_text()
-        data = json.loads(text)
-        return data if isinstance(data, dict) and data else None
+        meta = json.loads(META_FILE.read_text()) if META_FILE.exists() else None
     except Exception:
-        return None
+        meta = None
+    try:
+        content = CONFIG_FILE.read_text() if CONFIG_FILE.exists() else None
+        if content is not None and content.strip() in ("", "{}"):
+            content = None
+    except Exception:
+        content = None
+    return meta, content
 
 
 @app.get("/health")
@@ -29,5 +35,9 @@ def health():
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    payload = _load_payload()
-    return templates.TemplateResponse("index.html", {"request": request, "payload": payload})
+    meta, content = _load()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "meta": meta,
+        "content": content,
+    })
