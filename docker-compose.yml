@@ -101,6 +101,7 @@ services:
       GITHUB_DEPLOY_TOKEN: ${GITHUB_DEPLOY_TOKEN:-}
       GITHUB_REPO_OWNER: ${GITHUB_REPO_OWNER:-}
       GITHUB_REPO_NAME: ${GITHUB_REPO_NAME:-}
+      DATABASE_URL: "sqlite+aiosqlite:///./deploy_logs.db"
     depends_on:
     - service-config-table
     - service-ssot
