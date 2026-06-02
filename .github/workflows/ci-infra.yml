@@ -256,7 +256,7 @@ jobs:
             prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --values k8s/monitoring/kube-prometheus-values.yaml \
-            --set grafana.adminPassword="${GRAFANA_PASSWORD}" \
+            --set-string grafana.adminPassword="${GRAFANA_PASSWORD}" \
             --timeout 10m --wait
           envsubst < k8s/monitoring/postgres-exporter.yaml | kubectl apply -f -
           envsubst < k8s/monitoring/redis-exporter.yaml    | kubectl apply -f -
