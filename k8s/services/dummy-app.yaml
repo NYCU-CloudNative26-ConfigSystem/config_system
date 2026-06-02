@@ -4,8 +4,8 @@ metadata:
   name: dummy-app-config
   namespace: config-system
 data:
-  payload.json: |
-    {}
+  config_file: ""
+  meta.json: "{}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: dummy-app
-          image: gcr.io/YOUR_PROJECT_ID/dummy-app:latest
+          image: ${IMAGE_DUMMY_APP}
           ports:
             - containerPort: 8080
           readinessProbe:
