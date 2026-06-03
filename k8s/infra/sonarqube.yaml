@@ -83,11 +83,18 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: sonarqube
           image: sonarqube:9-community
           ports:
             - containerPort: 9000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           env:
             - name: SONAR_JDBC_URL
               value: jdbc:postgresql://sonarqube-db:5432/sonarqube
