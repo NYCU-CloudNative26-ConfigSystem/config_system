@@ -81,7 +81,7 @@ grafana:
         revision: 1
         datasource: Prometheus
       kubernetes-pods:
-        gnetId: 6336
+        gnetId: 15760
         revision: 1
         datasource: Prometheus
 
