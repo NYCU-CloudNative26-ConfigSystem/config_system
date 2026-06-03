@@ -44,7 +44,10 @@ prometheus:
 # ── Grafana ───────────────────────────────────────────────────────────────────
 grafana:
   enabled: true
-  # adminPassword injected via --set grafana.adminPassword=... in CI
+  admin:
+    existingSecret: "grafana-admin-creds"
+    userKey: admin-user
+    passwordKey: admin-password
   service:
     type: ClusterIP
   ingress:
