@@ -13,7 +13,7 @@ spec:
       port:
         number: 3000
   rules:
-    - host: cloud-native.sonar.com
+    - host: qube.fishyu.uk
       http:
         paths:
           - path: /
