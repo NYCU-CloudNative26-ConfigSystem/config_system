@@ -150,11 +150,25 @@ spec:
           persistentVolumeClaim:
             claimName: sonarqube-logs
 ---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: sonarqube-backendconfig
+  namespace: ${K8S_NAMESPACE}
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    port: 9000
+    type: HTTP
+    requestPath: /api/system/status
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: sonarqube
   namespace: ${K8S_NAMESPACE}
+  annotations:
+    cloud.google.com/backend-config: '{"default": "sonarqube-backendconfig"}'
 spec:
   selector:
     app: sonarqube
