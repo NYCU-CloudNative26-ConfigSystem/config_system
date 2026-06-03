@@ -4,7 +4,7 @@ metadata:
   name: service-config-export
   namespace: ${K8S_NAMESPACE}
 spec:
-  replicas: 2
+  replicas: ${REPLICAS}
   strategy:
     type: RollingUpdate
     rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
@@ -34,6 +34,9 @@ spec:
             - name: GITHUB_REPO_NAME
               valueFrom:
                 secretKeyRef: {name: shared-secrets, key: GITHUB_REPO_NAME}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: shared-secrets, key: DATABASE_URL_CONFIG}
           resources:
             requests:
               cpu: "50m"

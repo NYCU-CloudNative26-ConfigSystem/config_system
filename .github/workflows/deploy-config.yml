@@ -1,8 +1,20 @@
 name: Deploy Config to Dummy App
 
 on:
-  repository_dispatch:
-    types: [deploy-config]
+  workflow_dispatch:
+    inputs:
+      file_b64:
+        description: 'Base64-encoded config file'
+        required: true
+        type: string
+      meta_b64:
+        description: 'Base64-encoded meta JSON'
+        required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace'
+        required: true
+        type: string
 
 env:
   GKE_CLUSTER: config-system
@@ -32,9 +44,9 @@ jobs:
 
       - name: Decode and apply config files
         run: |
-          NAMESPACE="${{ github.event.client_payload.namespace }}"
-          printf '%s' '${{ github.event.client_payload.file_b64 }}' | base64 -d > /tmp/config_file
-          printf '%s' '${{ github.event.client_payload.meta_b64 }}' | base64 -d > /tmp/meta.json
+          NAMESPACE="${{ inputs.namespace }}"
+          printf '%s' '${{ inputs.file_b64 }}' | base64 -d > /tmp/config_file
+          printf '%s' '${{ inputs.meta_b64 }}' | base64 -d > /tmp/meta.json
           kubectl create configmap dummy-app-config \
             --from-file=config_file=/tmp/config_file \
             --from-file=meta.json=/tmp/meta.json \
@@ -42,7 +54,7 @@ jobs:
             | kubectl apply -f - -n "$NAMESPACE"
 
       - name: Restart dummy app
-        run: kubectl rollout restart deployment/dummy-app -n "${{ github.event.client_payload.namespace }}"
+        run: kubectl rollout restart deployment/dummy-app -n "${{ inputs.namespace }}"
 
       - name: Wait for rollout
-        run: kubectl rollout status deployment/dummy-app -n "${{ github.event.client_payload.namespace }}" --timeout=120s
+        run: kubectl rollout status deployment/dummy-app -n "${{ inputs.namespace }}" --timeout=120s
