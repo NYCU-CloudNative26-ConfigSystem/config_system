@@ -1,0 +1,40 @@
+name: Formatting Check
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - '**/*.py'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '.github/workflows/format.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - '**/*.py'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '.github/workflows/format.yml'
+
+jobs:
+  python-format:
+    name: Python · Black
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install black==24.10.0
+      - run: black --check Service_Login Service_Config_Table Service_Config_Export Service_DummyApp
+
+  ts-format:
+    name: TypeScript · Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --global prettier@3.3.3
+      - run: prettier --check "Service_SSOT/**/*.ts" "Service_FrontendUI/**/*.ts" "Service_FrontendUI/**/*.tsx"
