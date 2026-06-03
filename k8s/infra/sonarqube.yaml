@@ -118,7 +118,7 @@ spec:
               memory: "2Gi"
           readinessProbe:
             httpGet:
-              path: /api/system/health
+              path: /api/system/status
               port: 9000
             initialDelaySeconds: 60
             periodSeconds: 10
