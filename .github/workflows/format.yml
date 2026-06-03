@@ -26,7 +26,13 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install black==24.10.0
-      - run: black --check Service_Login Service_Config_Table Service_Config_Export Service_DummyApp
+      - run: |
+          files=$(find . -type f -name "*.py" 2>/dev/null)
+          if [ -n "$files" ]; then
+            black --check $files
+          else
+            echo "No Python files to format"
+          fi
 
   ts-format:
     name: TypeScript · Prettier
@@ -37,4 +43,10 @@ jobs:
         with:
           node-version: '20'
       - run: npm install --global prettier@3.3.3
-      - run: prettier --check "Service_SSOT/**/*.ts" "Service_FrontendUI/**/*.ts" "Service_FrontendUI/**/*.tsx"
+      - run: |
+          files=$(find . -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null)
+          if [ -n "$files" ]; then
+            npx prettier --check $files
+          else
+            echo "No TypeScript files to format"
+          fi
