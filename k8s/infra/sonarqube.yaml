@@ -96,6 +96,8 @@ spec:
             capabilities:
               drop: ["ALL"]
           env:
+            - name: SONAR_ES_BOOTSTRAP_CHECKS_DISABLE
+              value: "true"
             - name: SONAR_JDBC_URL
               value: jdbc:postgresql://sonarqube-db:5432/sonarqube
             - name: SONAR_JDBC_USERNAME
